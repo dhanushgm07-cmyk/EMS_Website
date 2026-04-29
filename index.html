@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EMS — Energy Dashboard</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-page" class="page active">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-icon">⚡</div>
+        <h1>Energy Dashboard</h1>
+        <p>Sign in to monitor your systems</p>
+      </div>
+      <div id="login-error" class="login-error hidden">Invalid credentials. Try again.</div>
+      <div class="field">
+        <label>User ID</label>
+        <input type="text" id="username" placeholder="Enter your ID"/>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••"/>
+      </div>
+      <button class="btn-primary" onclick="login()">Sign In</button>
+      <p class="hint">Demo: admin / admin123</p>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard-page" class="page">
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-icon">⚡</span>
+      <span class="topbar-title">Energy Dashboard</span>
+    </div>
+    <div class="topbar-right">
+      <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+      <div class="clock" id="clock">00:00:00</div>
+      <div class="user-chip" id="user-chip">A</div>
+      <button class="btn-signout" onclick="logout()">Sign out</button>
+    </div>
+  </header>
+
+  <main class="dash-main">
+
+    <!-- FILTERS -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label>Department</label>
+        <select id="sel-dept" onchange="onFilterChange()">
+          <option>All</option>
+          <option>Production</option>
+          <option>Warehouse</option>
+          <option>Office</option>
+          <option>HVAC</option>
+          <option>Lighting</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Time Period</label>
+        <select id="sel-period" onchange="onFilterChange()">
+          <option>Today</option>
+          <option>This Week</option>
+          <option>This Month</option>
+          <option>This Year</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Equipment Type</label>
+        <select id="sel-equip" onchange="onFilterChange()">
+          <option>All Equipment</option>
+          <option>Motors</option>
+          <option>Chillers</option>
+          <option>Compressors</option>
+          <option>Lighting Systems</option>
+          <option>Pumps</option>
+          <option>HVAC Units</option>
+          <option>Computers</option>
+          <option>Conveyors</option>
+          <option>Forklifts</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- LOCATION PILL -->
+    <div id="loc-pill" class="loc-pill hidden">
+      <span>📍 Location Filter: <strong id="loc-label"></strong></span>
+      <button onclick="clearLocation()">✕ Clear</button>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-body">
+          <div class="kpi-label">Total Energy Usage</div>
+          <div class="kpi-val"><span id="kpi-total">0</span> <em>kWh</em></div>
+          <div class="kpi-trend up">↑ 5.2% from last period</div>
+        </div>
+        <div class="kpi-icon" style="background:#FF924C">⚡</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-body">
+          <div class="kpi-label">Peak Consumption</div>
+          <div class="kpi-val"><span id="kpi-peak">0</span> <em>kWh</em></div>
+          <div class="kpi-trend down">↓ 2.1% from last period</div>
+        </div>
+        <div class="kpi-icon" style="background:#D75B5B">▲</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-body">
+          <div class="kpi-label">Average Efficiency</div>
+          <div class="kpi-val"><span id="kpi-eff">0</span> <em>%</em></div>
+          <div class="kpi-trend up">↑ 3.8% from last period</div>
+        </div>
+        <div class="kpi-icon" style="background:#A7B89C">◎</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-body">
+          <div class="kpi-label">Cost Metrics</div>
+          <div class="kpi-val">$ <span id="kpi-cost">0</span></div>
+          <div class="kpi-trend up">↑ 1.5% from last period</div>
+        </div>
+        <div class="kpi-icon" style="background:#E0A25B">$</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-body">
+          <div class="kpi-label">Energy Saved</div>
+          <div class="kpi-val"><span id="kpi-saved">0</span> <em>kWh</em></div>
+          <div class="kpi-trend up">↑ 8.3% from last period</div>
+        </div>
+        <div class="kpi-icon" style="background:#E57A2A">🌿</div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs-bar">
+      <button class="tab active" onclick="switchTab('overview',this)">Overview</button>
+      <button class="tab" onclick="switchTab('heatmap',this)">Heat Map</button>
+      <button class="tab" onclick="switchTab('trends',this)">Trends</button>
+      <button class="tab" onclick="switchTab('alerts',this)">Alerts</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div id="tab-overview" class="tab-panel active">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">Real-Time Energy Monitoring</div>
+          <canvas id="lineChart"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Department Consumption &amp; Efficiency</div>
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEATMAP -->
+    <div id="tab-heatmap" class="tab-panel hidden">
+      <div class="card">
+        <div class="card-title">Energy Usage Heat Map</div>
+        <div class="hm-legend">
+          <span><i class="hm-dot" style="background:#A7B89C"></i>Efficient (&lt;250 kWh)</span>
+          <span><i class="hm-dot" style="background:#E0A25B"></i>Caution (250–400 kWh)</span>
+          <span><i class="hm-dot" style="background:#D75B5B"></i>High (&gt;400 kWh)</span>
+        </div>
+        <div class="hm-grid" id="hm-grid"></div>
+      </div>
+    </div>
+
+    <!-- TRENDS -->
+    <div id="tab-trends" class="tab-panel hidden">
+      <div class="card">
+        <div class="trend-head">
+          <div class="card-title">Energy Consumption Trends</div>
+          <div class="range-tabs">
+            <button class="rtab active" onclick="setRange('daily',this)">Daily</button>
+            <button class="rtab" onclick="setRange('weekly',this)">Weekly</button>
+            <button class="rtab" onclick="setRange('monthly',this)">Monthly</button>
+            <button class="rtab" onclick="setRange('yearly',this)">Yearly</button>
+          </div>
+        </div>
+        <canvas id="trendChart"></canvas>
+        <div class="anomaly-note">⚠ Red markers indicate anomalies or unusual consumption patterns</div>
+      </div>
+    </div>
+
+    <!-- ALERTS -->
+    <div id="tab-alerts" class="tab-panel hidden">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title-row">
+            <div class="card-title">Alerts &amp; Notifications</div>
+            <span class="badge-red" id="crit-badge">2 Critical</span>
+          </div>
+          <div id="alerts-list" class="accordion-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">📄 Automated Reports</div>
+          <div id="reports-list" class="accordion-list"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
