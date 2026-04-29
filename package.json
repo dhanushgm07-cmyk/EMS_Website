@@ -1,0 +1,12 @@
+{
+  "name": "energy-dashboard",
+  "version": "1.0.0",
+  "description": "Energy monitoring dashboard with Node.js backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["energy", "dashboard", "monitoring"],
+  "license": "MIT"
+}

@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>⚡ Energy Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --orange: #FF924C;
+    --orange-dark: #E57A2A;
+    --orange-glow: rgba(255,146,76,0.18);
+    --red: #D75B5B;
+    --green: #A7B89C;
+    --amber: #E0A25B;
+    --bg: #0F0F0E;
+    --bg2: #161614;
+    --bg3: #1E1E1B;
+    --border: rgba(255,146,76,0.15);
+    --text: #F0EDE8;
+    --muted: #8A857D;
+    --radius: 12px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,146,76,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,146,76,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+
+  /* ─── Header ─────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--orange);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-size: 20px;
+    box-shadow: 0 0 20px var(--orange-glow);
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-size: clamp(20px, 4vw, 28px);
+    font-weight: 800;
+    color: var(--orange);
+    letter-spacing: -0.5px;
+  }
+  .live-badge {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+    background: rgba(167,184,156,0.1);
+    border: 1px solid rgba(167,184,156,0.25);
+    padding: 5px 10px;
+    border-radius: 20px;
+  }
+  .live-dot {
+    width: 7px; height: 7px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100%{opacity:1;transform:scale(1)}
+    50%{opacity:0.5;transform:scale(0.8)}
+  }
+
+  /* ─── Filters ────────────────────────────── */
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .filter-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .filter-group select {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: var(--radius);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238A857D' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+  .filter-group select:focus { border-color: var(--orange); }
+
+  /* Location tag */
+  .location-tag {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: var(--orange-glow);
+    border: 1px solid rgba(255,146,76,0.3);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .location-tag.show { display: flex; }
+  .location-tag button {
+    margin-left: auto;
+    background: none; border: none; cursor: pointer;
+    color: var(--orange); font-size: 12px; font-weight: 600;
+    font-family: 'Syne', sans-serif;
+  }
+
+  /* ─── KPI Cards ──────────────────────────── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:600px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+
+  .kpi-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    animation: fadeUp 0.5s ease both;
+  }
+  .kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  @keyframes fadeUp {
+    from{opacity:0;transform:translateY(16px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  .kpi-card:nth-child(2){animation-delay:0.07s}
+  .kpi-card:nth-child(3){animation-delay:0.14s}
+  .kpi-card:nth-child(4){animation-delay:0.21s}
+  .kpi-card:nth-child(5){animation-delay:0.28s}
+
+  .kpi-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .kpi-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+  .kpi-icon {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    display: grid; place-items: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .kpi-value {
+    font-size: clamp(22px, 3vw, 30px);
+    font-weight: 800;
+    font-family: 'DM Mono', monospace;
+    color: var(--text);
+    letter-spacing: -1px;
+    line-height: 1;
+    margin-bottom: 6px;
+    transition: color 0.3s;
+  }
+  .kpi-value.animating { color: var(--orange); }
+  .kpi-unit { font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+  .kpi-trend { font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .trend-up { color: var(--green); }
+  .trend-down { color: var(--red); }
+
+  /* ─── Tabs ───────────────────────────────── */
+  .tab-bar {
+    display: flex; gap: 4px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px;
+    margin-bottom: 20px;
+    width: fit-content;
+  }
+  .tab-btn {
+    padding: 8px 20px;
+    border: none; background: none;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab-btn.active {
+    background: var(--orange);
+    color: white;
+    box-shadow: 0 2px 10px rgba(255,146,76,0.3);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ─── Cards / Chart Wrappers ─────────────── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width:900px){.two-col{grid-template-columns:1fr}}
+
+  canvas { max-height: 320px; }
+
+  /* ─── Heat Map ───────────────────────────── */
+  .heatmap-legend {
+    display: flex; flex-wrap: wrap; gap: 16px;
+    margin-bottom: 16px; font-size: 12px; color: var(--muted);
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px;
+  }
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 6px;
+    aspect-ratio: 1;
+    max-height: 480px;
+  }
+  .heatmap-grid > div.zone-row {
+    display: contents;
+  }
+  .hm-zone {
+    border-radius: 10px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s, filter 0.2s;
+    padding: 8px;
+    border: 2px solid transparent;
+  }
+  .hm-zone:hover { transform: scale(1.04); filter: brightness(1.15); }
+  .hm-zone.efficient { background: rgba(167,184,156,0.3); border-color: rgba(167,184,156,0.5); }
+  .hm-zone.caution   { background: rgba(224,162,91,0.3);  border-color: rgba(224,162,91,0.5); }
+  .hm-zone.high      { background: rgba(215,91,91,0.3);   border-color: rgba(215,91,91,0.5); }
+  .hm-zone .zone-name { font-size: 13px; font-weight: 700; }
+  .hm-zone .zone-area { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .hm-zone .zone-kwh  { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; margin-top: 5px; }
+
+  /* ─── Trends ─────────────────────────────── */
+  .trend-range-btns { display: flex; gap: 6px; margin-bottom: 16px; }
+  .range-btn {
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--muted);
+    border-radius: 20px;
+    font-family: 'Syne', sans-serif;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .range-btn.active { border-color: var(--orange); color: var(--orange); background: var(--orange-glow); }
+  .anomaly-note {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--muted); margin-top: 10px;
+  }
+  .anomaly-dot { width: 8px; height: 8px; background: var(--red); border-radius: 50%; flex-shrink: 0; }
+
+  /* ─── Alerts ─────────────────────────────── */
+  .alert-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .alert-item:hover { border-color: rgba(255,146,76,0.35); }
+  .alert-header {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 14px;
+    cursor: pointer;
+  }
+  .sev-icon {
+    width: 30px; height: 30px;
+    border-radius: 7px;
+    display: grid; place-items: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .sev-critical { background: rgba(215,91,91,0.2); color: var(--red); }
+  .sev-warning  { background: rgba(224,162,91,0.2); color: var(--amber); }
+  .sev-info     { background: rgba(255,146,76,0.15); color: var(--orange); }
+  .alert-meta { flex: 1; min-width: 0; }
+  .alert-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .alert-equip { font-size: 11px; color: var(--muted); }
+  .alert-time  { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .sev-badge {
+    font-size: 10px; font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .badge-critical { background: rgba(215,91,91,0.2); color: var(--red); }
+  .badge-warning  { background: rgba(224,162,91,0.2); color: var(--amber); }
+  .badge-info     { background: rgba(255,146,76,0.15); color: var(--orange); }
+  .chevron { color: var(--muted); transition: transform 0.3s; flex-shrink: 0; font-size: 12px; margin-top: 2px; }
+  .chevron.open { transform: rotate(180deg); }
+  .alert-body {
+    display: none;
+    padding: 0 14px 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .alert-body.open { display: block; }
+  .threshold-box {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+  .threshold-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .threshold-row:last-child { margin-bottom: 0; }
+  .t-label { color: var(--muted); }
+  .t-exceed { color: var(--red); font-weight: 600; }
+  .rec-list { font-size: 12px; color: var(--muted); padding-left: 16px; }
+  .rec-list li { margin-bottom: 4px; }
+
+  /* ─── Reports ────────────────────────────── */
+  .report-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .report-item:hover { border-color: rgba(255,146,76,0.35); }
+  .report-header {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 14px; cursor: pointer;
+  }
+  .report-icon { color: var(--orange); font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .report-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .report-summary { font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .report-body {
+    display: none;
+    padding: 0 14px 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .report-body.open { display: block; }
+  .section-head {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--orange);
+    margin-bottom: 6px; margin-top: 10px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .report-body ul { font-size: 12px; color: var(--muted); padding-left: 16px; }
+  .report-body li { margin-bottom: 4px; }
+
+  /* ─── Toast ──────────────────────────────── */
+  #toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--orange);
+    border-radius: 10px;
+    padding: 14px 18px;
+    max-width: 320px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+  }
+  #toast.show { transform: translateX(0); }
+  #toast-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  #toast-desc { font-size: 12px; color: var(--muted); }
+
+  /* ─── Loading skeleton ───────────────────── */
+  .skeleton { background: linear-gradient(90deg, var(--bg3) 25%, var(--bg2) 50%, var(--bg3) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  @media(max-width:600px){
+    .tab-bar{width:100%;display:grid;grid-template-columns:1fr 1fr}
+    .tab-btn{text-align:center}
+    .heatmap-grid{max-height:320px}
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <div class="logo-icon">⚡</div>
+    <h1>Energy Dashboard</h1>
+    <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+  </header>
+
+  <!-- Filters -->
+  <div class="filters" id="filters">
+    <div class="filter-group">
+      <label>Department</label>
+      <select id="sel-dept"></select>
+    </div>
+    <div class="filter-group">
+      <label>Time Period</label>
+      <select id="sel-period"></select>
+    </div>
+    <div class="filter-group">
+      <label>Equipment Type</label>
+      <select id="sel-equip"></select>
+    </div>
+  </div>
+
+  <!-- Location tag -->
+  <div class="location-tag" id="loc-tag">
+    <span id="loc-tag-text"></span>
+    <button onclick="clearLocation()">✕ Clear Filter</button>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="kpi-card"><div class="skeleton" style="height:80px"></div></div>
+    <div class="kpi-card"><div class="skeleton" style="height:80px"></div></div>
+    <div class="kpi-card"><div class="skeleton" style="height:80px"></div></div>
+    <div class="kpi-card"><div class="skeleton" style="height:80px"></div></div>
+    <div class="kpi-card"><div class="skeleton" style="height:80px"></div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('overview',this)">Overview</button>
+    <button class="tab-btn" onclick="switchTab('heatmap',this)">Heat Map</button>
+    <button class="tab-btn" onclick="switchTab('trends',this)">Trends</button>
+    <button class="tab-btn" onclick="switchTab('alerts',this)">Alerts</button>
+  </div>
+
+  <!-- Overview Tab -->
+  <div class="tab-panel active" id="tab-overview">
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">⚡ Real-Time Energy Monitoring</div>
+        <canvas id="lineChart"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 Department Consumption & Efficiency</div>
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Heatmap Tab -->
+  <div class="tab-panel" id="tab-heatmap">
+    <div class="card">
+      <div class="card-title">🗺 Energy Usage Heat Map</div>
+      <div class="heatmap-legend">
+        <span><span class="legend-dot" style="background:rgba(167,184,156,0.7)"></span>Efficient (&lt;250 kWh)</span>
+        <span><span class="legend-dot" style="background:rgba(224,162,91,0.7)"></span>Caution (250–400 kWh)</span>
+        <span><span class="legend-dot" style="background:rgba(215,91,91,0.7)"></span>High (&gt;400 kWh)</span>
+      </div>
+      <div class="heatmap-grid" id="heatmap-grid"></div>
+    </div>
+  </div>
+
+  <!-- Trends Tab -->
+  <div class="tab-panel" id="tab-trends">
+    <div class="card">
+      <div class="card-title">📈 Energy Consumption Trends</div>
+      <div class="trend-range-btns">
+        <button class="range-btn active" onclick="setTrendRange('daily',this)">Daily</button>
+        <button class="range-btn" onclick="setTrendRange('weekly',this)">Weekly</button>
+        <button class="range-btn" onclick="setTrendRange('monthly',this)">Monthly</button>
+        <button class="range-btn" onclick="setTrendRange('yearly',this)">Yearly</button>
+      </div>
+      <canvas id="trendChart" style="max-height:300px"></canvas>
+      <div class="anomaly-note"><span class="anomaly-dot"></span> Red markers indicate anomalies or unusual consumption patterns</div>
+    </div>
+  </div>
+
+  <!-- Alerts Tab -->
+  <div class="tab-panel" id="tab-alerts">
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title" id="alerts-title">🔔 Alerts & Notifications</div>
+        <div id="alerts-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📄 Automated Reports</div>
+        <div id="reports-list"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast">
+  <div id="toast-title"></div>
+  <div id="toast-desc"></div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+const state = {
+  dept: 'All',
+  period: 'Today',
+  equip: 'All Equipment',
+  location: '',
+  trendRange: 'daily',
+  meta: null,
+};
+
+let lineChart, barChart, trendChart;
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  const meta = await fetch('/api/meta').then(r => r.json());
+  state.meta = meta;
+
+  // Populate selects
+  const deptSel = document.getElementById('sel-dept');
+  meta.departments.forEach(d => {
+    const o = document.createElement('option'); o.value = o.textContent = d; deptSel.appendChild(o);
+  });
+  const periodSel = document.getElementById('sel-period');
+  meta.timePeriods.forEach(p => {
+    const o = document.createElement('option'); o.value = o.textContent = p; periodSel.appendChild(o);
+  });
+  const equipSel = document.getElementById('sel-equip');
+  (meta.departmentEquipmentMap['All']).forEach(e => {
+    const o = document.createElement('option'); o.value = o.textContent = e; equipSel.appendChild(o);
+  });
+
+  deptSel.addEventListener('change', () => { state.dept = deptSel.value; updateEquipList(); refreshDashboard(); });
+  periodSel.addEventListener('change', () => { state.period = periodSel.value; refreshDashboard(); });
+  equipSel.addEventListener('change', () => { state.equip = equipSel.value; refreshDashboard(); });
+
+  await Promise.all([refreshDashboard(), loadHeatmap(), loadAlerts(), loadReports()]);
+  loadTrend();
+}
+
+function updateEquipList() {
+  const equipSel = document.getElementById('sel-equip');
+  const list = state.meta.departmentEquipmentMap[state.dept] || state.meta.departmentEquipmentMap['All'];
+  equipSel.innerHTML = '';
+  list.forEach(e => { const o = document.createElement('option'); o.value = o.textContent = e; equipSel.appendChild(o); });
+  state.equip = 'All Equipment';
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+async function refreshDashboard() {
+  const qs = new URLSearchParams({ department: state.dept, equipment: state.equip, period: state.period, location: state.location });
+  const data = await fetch('/api/dashboard?' + qs).then(r => r.json());
+  renderKPIs(data.kpis);
+  renderLineChart(data.chartData);
+  renderBarChart(data.departmentData);
+}
+
+function renderKPIs(kpis) {
+  const configs = [
+    { title:'Total Energy Usage', value:kpis.totalEnergy, unit:'kWh', icon:'⚡', color:'#FF924C', trend:5.2 },
+    { title:'Peak Consumption',   value:kpis.peakConsumption, unit:'kWh', icon:'📈', color:'#D75B5B', trend:-2.1 },
+    { title:'Avg Efficiency',     value:kpis.avgEfficiency,   unit:'%',   icon:'⚙️', color:'#A7B89C', trend:3.8 },
+    { title:'Cost Metrics',       value:kpis.cost,            unit:'$',   icon:'💰', color:'#E0A25B', trend:1.5 },
+    { title:'Energy Saved',       value:kpis.energySaved,     unit:'kWh', icon:'🌿', color:'#E57A2A', trend:8.3 },
+  ];
+
+  const grid = document.getElementById('kpi-grid');
+  grid.innerHTML = '';
+  configs.forEach(cfg => {
+    const card = document.createElement('div');
+    card.className = 'kpi-card';
+    const trendHtml = `<span class="${cfg.trend>=0?'trend-up':'trend-down'}">${cfg.trend>=0?'↑':'↓'} ${Math.abs(cfg.trend)}% from last period</span>`;
+    card.innerHTML = `
+      <div class="kpi-top">
+        <span class="kpi-label">${cfg.title}</span>
+        <div class="kpi-icon" style="background:${cfg.color}22;color:${cfg.color}">${cfg.icon}</div>
+      </div>
+      <div class="kpi-value animating" id="kpi-val-${cfg.title.replace(/\s/g,'')}">0<span class="kpi-unit">${cfg.unit}</span></div>
+      <div class="kpi-trend">${trendHtml}</div>`;
+    grid.appendChild(card);
+    animateNumber(card.querySelector('.kpi-value'), cfg.value, cfg.unit);
+  });
+}
+
+function animateNumber(el, target, unit) {
+  let current = 0;
+  const steps = 50;
+  const step = target / steps;
+  const iv = setInterval(() => {
+    current = Math.min(current + step, target);
+    el.innerHTML = Math.round(current).toLocaleString() + `<span class="kpi-unit">${unit}</span>`;
+    if (current >= target) { el.classList.remove('animating'); clearInterval(iv); }
+  }, 20);
+}
+
+function renderLineChart(data) {
+  const ctx = document.getElementById('lineChart').getContext('2d');
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.hour),
+      datasets: [{
+        label: 'Energy Consumption (kWh)',
+        data: data.map(d => d.consumption),
+        borderColor: '#FF924C',
+        backgroundColor: 'rgba(255,146,76,0.08)',
+        pointBackgroundColor: '#FF924C',
+        pointRadius: 3,
+        pointHoverRadius: 6,
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#8A857D', font: { family: 'Syne' } } } },
+      scales: {
+        x: { ticks: { color: '#8A857D', font: { family: 'DM Mono', size: 10 } }, grid: { color: 'rgba(255,146,76,0.07)' } },
+        y: { ticks: { color: '#8A857D', font: { family: 'DM Mono', size: 10 } }, grid: { color: 'rgba(255,146,76,0.07)' } },
+      }
+    }
+  });
+}
+
+function renderBarChart(data) {
+  const ctx = document.getElementById('barChart').getContext('2d');
+  if (barChart) barChart.destroy();
+  const colors = ['#FF924C','#A7B89C','#E0A25B','#D75B5B','#E57A2A'];
+  barChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.name),
+      datasets: [
+        {
+          label: 'Consumption (kWh)',
+          data: data.map(d => d.consumption),
+          backgroundColor: data.map((_, i) => colors[i % colors.length] + 'CC'),
+          borderColor: data.map((_, i) => colors[i % colors.length]),
+          borderWidth: 1,
+          borderRadius: 6,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Efficiency (%)',
+          data: data.map(d => d.efficiency),
+          backgroundColor: 'rgba(167,184,156,0.25)',
+          borderColor: '#A7B89C',
+          borderWidth: 1.5,
+          borderRadius: 6,
+          yAxisID: 'y1',
+          type: 'line',
+          tension: 0.4,
+          pointBackgroundColor: '#A7B89C',
+          pointRadius: 4,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#8A857D', font: { family: 'Syne' } } } },
+      scales: {
+        x: { ticks: { color: '#8A857D', font: { family: 'DM Mono', size: 10 } }, grid: { color: 'rgba(255,146,76,0.07)' } },
+        y: { ticks: { color: '#8A857D', font: { family: 'DM Mono', size: 10 } }, grid: { color: 'rgba(255,146,76,0.07)' } },
+        y1: { position: 'right', min: 0, max: 100, ticks: { color: '#A7B89C', font: { family: 'DM Mono', size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ─── Heatmap ──────────────────────────────────────────────────────────────────
+async function loadHeatmap() {
+  const zones = await fetch('/api/heatmap').then(r => r.json());
+  const grid = document.getElementById('heatmap-grid');
+  grid.innerHTML = '';
+  zones.forEach(zone => {
+    const el = document.createElement('div');
+    el.className = `hm-zone ${zone.status}`;
+    el.innerHTML = `<div class="zone-name">${zone.name}</div><div class="zone-area">${zone.area}</div><div class="zone-kwh">${zone.consumption} kWh</div>`;
+    el.addEventListener('click', () => {
+      state.location = zone.location;
+      document.getElementById('loc-tag').classList.add('show');
+      document.getElementById('loc-tag-text').textContent = `📍 Location Filter: ${zone.location} — ${zone.area} (${zone.consumption} kWh)`;
+      refreshDashboard();
+      showToast('Filter Applied', `Filtering by ${zone.location} – ${zone.area} (${zone.consumption} kWh)`);
+    });
+    grid.appendChild(el);
+  });
+}
+
+function clearLocation() {
+  state.location = '';
+  document.getElementById('loc-tag').classList.remove('show');
+  refreshDashboard();
+}
+
+// ─── Trends ───────────────────────────────────────────────────────────────────
+async function loadTrend() {
+  const data = await fetch(`/api/trends?range=${state.trendRange}`).then(r => r.json());
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if (trendChart) trendChart.destroy();
+
+  const pointColors = data.map(d => d.isAnomaly ? '#D75B5B' : '#FF924C');
+  const pointRadii  = data.map(d => d.isAnomaly ? 6 : 3);
+
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.date),
+      datasets: [
+        {
+          label: 'Consumption (kWh)',
+          data: data.map(d => d.consumption),
+          borderColor: '#FF924C',
+          backgroundColor: 'rgba(255,146,76,0.07)',
+          pointBackgroundColor: pointColors,
+          pointRadius: pointRadii,
+          pointHoverRadius: 7,
+          borderWidth: 2,
+          tension: 0.4,
+          fill: true,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Efficiency (%)',
+          data: data.map(d => d.efficiency),
+          borderColor: '#A7B89C',
+          backgroundColor: 'transparent',
+          pointBackgroundColor: '#A7B89C',
+          pointRadius: 3,
+          borderWidth: 1.5,
+          tension: 0.4,
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#8A857D', font: { family: 'Syne' } } } },
+      scales: {
+        x: { ticks: { color: '#8A857D', font: { family: 'DM Mono', size: 10 }, maxRotation: 45 }, grid: { color: 'rgba(255,146,76,0.07)' } },
+        y: { ticks: { color: '#8A857D', font: { family: 'DM Mono', size: 10 } }, grid: { color: 'rgba(255,146,76,0.07)' } },
+        y1: { position: 'right', min: 0, max: 100, ticks: { color: '#A7B89C', font: { family: 'DM Mono', size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function setTrendRange(range, btn) {
+  state.trendRange = range;
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadTrend();
+}
+
+// ─── Alerts ───────────────────────────────────────────────────────────────────
+async function loadAlerts() {
+  const alerts = await fetch('/api/alerts').then(r => r.json());
+  const critCount = alerts.filter(a => a.severity === 'critical').length;
+  document.getElementById('alerts-title').innerHTML = `🔔 Alerts &amp; Notifications <span class="sev-badge badge-critical" style="margin-left:8px">${critCount} Critical</span>`;
+
+  const list = document.getElementById('alerts-list');
+  list.innerHTML = '';
+  alerts.forEach(alert => {
+    const icons = { critical:'🚨', warning:'⚠️', info:'ℹ️' };
+    const timeAgo = formatTimeAgo(alert.timestamp);
+    const deviationHtml = alert.threshold > 0 ? `
+      <div class="threshold-box">
+        <div class="threshold-row"><span class="t-label">Threshold:</span><span>${alert.threshold} kWh</span></div>
+        <div class="threshold-row"><span class="t-label">Current Value:</span><span class="t-exceed">${alert.currentValue} kWh</span></div>
+        <div class="threshold-row"><span class="t-label">Deviation:</span><span class="t-exceed">+${Math.round(((alert.currentValue - alert.threshold)/alert.threshold)*100)}%</span></div>
+      </div>` : '';
+
+    const item = document.createElement('div');
+    item.className = 'alert-item';
+    item.innerHTML = `
+      <div class="alert-header" onclick="toggleCollapse(this)">
+        <div class="sev-icon sev-${alert.severity}">${icons[alert.severity]}</div>
+        <div class="alert-meta">
+          <div class="alert-title">${alert.title}</div>
+          <div class="alert-equip">${alert.equipment}</div>
+          <div class="alert-time">${timeAgo}</div>
+        </div>
+        <span class="sev-badge badge-${alert.severity}">${alert.severity}</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="alert-body">
+        <p style="font-size:13px;color:#c0bbb4;margin-bottom:8px">${alert.description}</p>
+        ${deviationHtml}
+        <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#FF924C;margin-bottom:6px">Recommended Actions</p>
+        <ul class="rec-list">
+          <li>Inspect equipment for mechanical issues or faults</li>
+          <li>Review recent operational changes or schedule modifications</li>
+          <li>Contact maintenance team if issue persists beyond 2 hours</li>
+        </ul>
+      </div>`;
+    list.appendChild(item);
+  });
+}
+
+// ─── Reports ──────────────────────────────────────────────────────────────────
+async function loadReports() {
+  const reports = await fetch('/api/reports').then(r => r.json());
+  const list = document.getElementById('reports-list');
+  list.innerHTML = '';
+  reports.forEach(report => {
+    const item = document.createElement('div');
+    item.className = 'report-item';
+    const detailsHtml = report.details.map(d => `<li>${d}</li>`).join('');
+    const recsHtml = report.recommendations.map(r => `<li>${r}</li>`).join('');
+    item.innerHTML = `
+      <div class="report-header" onclick="toggleCollapse(this)">
+        <span class="report-icon">📄</span>
+        <div style="flex:1;min-width:0">
+          <div class="report-title">${report.title}</div>
+          <div class="report-summary">${report.summary}</div>
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="report-body">
+        <div class="section-head">✅ Key Findings</div>
+        <ul>${detailsHtml}</ul>
+        <div class="section-head">💡 Recommendations</div>
+        <ul>${recsHtml}</ul>
+      </div>`;
+    list.appendChild(item);
+  });
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function toggleCollapse(header) {
+  const body = header.nextElementSibling;
+  const chevron = header.querySelector('.chevron');
+  body.classList.toggle('open');
+  chevron.classList.toggle('open');
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function formatTimeAgo(ts) {
+  const diff = Math.floor((Date.now() - new Date(ts)) / 60000);
+  if (diff < 60) return `${diff}m ago`;
+  if (diff < 1440) return `${Math.floor(diff/60)}h ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+let toastTimer;
+function showToast(title, desc) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-title').textContent = title;
+  document.getElementById('toast-desc').textContent = desc;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
