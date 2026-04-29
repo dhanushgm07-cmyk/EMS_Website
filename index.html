@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EMS — Energy Monitoring System</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- LOGIN PAGE -->
+  <div id="login-page" class="page active">
+    <div class="login-bg">
+      <div class="grid-overlay"></div>
+    </div>
+    <div class="login-box">
+      <div class="login-logo">
+        <div class="logo-icon">⚡</div>
+        <h1>EMS</h1>
+        <p>Energy Monitoring System</p>
+      </div>
+      <div id="login-error" class="login-error hidden">Invalid credentials. Try again.</div>
+      <div class="form-group">
+        <label>USER ID</label>
+        <input type="text" id="username" placeholder="Enter your ID" autocomplete="off"/>
+      </div>
+      <div class="form-group">
+        <label>PASSWORD</label>
+        <input type="password" id="password" placeholder="••••••••" />
+      </div>
+      <button class="btn-login" onclick="login()">ACCESS SYSTEM</button>
+      <p class="login-hint">Demo: admin / admin123</p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD PAGE -->
+  <div id="dashboard-page" class="page">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">EMS</span>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-btn active" onclick="showSection('overview')">
+          <span class="nav-icon">▦</span> Overview
+        </button>
+        <button class="nav-btn" onclick="showSection('devices')">
+          <span class="nav-icon">◈</span> Devices
+        </button>
+        <button class="nav-btn" onclick="showSection('analytics')">
+          <span class="nav-icon">◉</span> Analytics
+        </button>
+        <button class="nav-btn" onclick="showSection('alerts')">
+          <span class="nav-icon">◬</span> Alerts
+          <span class="badge" id="alert-badge">2</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">A</div>
+          <div>
+            <div class="user-name" id="display-name">Admin</div>
+            <div class="user-role">Operator</div>
+          </div>
+        </div>
+        <button class="btn-logout" onclick="logout()">⏻</button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+      <!-- TOP BAR -->
+      <div class="topbar">
+        <div class="topbar-title" id="section-title">System Overview</div>
+        <div class="topbar-right">
+          <div class="status-dot"></div>
+          <span class="status-text">LIVE</span>
+          <div class="clock" id="clock">00:00:00</div>
+        </div>
+      </div>
+
+      <!-- OVERVIEW SECTION -->
+      <section id="section-overview" class="section active">
+
+        <!-- SUMMARY CARDS -->
+        <div class="cards-grid">
+          <div class="card card--green">
+            <div class="card-label">TOTAL SOC</div>
+            <div class="card-value"><span id="total-soc">78</span><span class="card-unit">%</span></div>
+            <div class="card-bar"><div class="card-bar-fill" id="soc-bar" style="width:78%"></div></div>
+          </div>
+          <div class="card card--blue">
+            <div class="card-label">SYSTEM VOLTAGE</div>
+            <div class="card-value"><span id="total-voltage">487.2</span><span class="card-unit">V</span></div>
+          </div>
+          <div class="card card--orange">
+            <div class="card-label">TOTAL CURRENT</div>
+            <div class="card-value"><span id="total-current">142.5</span><span class="card-unit">A</span></div>
+          </div>
+          <div class="card card--red">
+            <div class="card-label">TOTAL POWER</div>
+            <div class="card-value"><span id="total-power">69.4</span><span class="card-unit">kW</span></div>
+          </div>
+          <div class="card card--teal">
+            <div class="card-label">AVG TEMPERATURE</div>
+            <div class="card-value"><span id="avg-temp">34.2</span><span class="card-unit">°C</span></div>
+          </div>
+          <div class="card card--purple">
+            <div class="card-label">DEVICES ONLINE</div>
+            <div class="card-value"><span id="devices-online">6</span><span class="card-unit">/6</span></div>
+          </div>
+        </div>
+
+        <!-- CHART ROW -->
+        <div class="chart-row">
+          <div class="chart-box">
+            <div class="chart-title">Power Output — Last 60s</div>
+            <canvas id="powerChart"></canvas>
+          </div>
+          <div class="chart-box chart-box--small">
+            <div class="chart-title">SOC per Device</div>
+            <canvas id="socChart"></canvas>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- DEVICES SECTION -->
+      <section id="section-devices" class="section">
+        <div class="devices-grid" id="devices-grid"></div>
+      </section>
+
+      <!-- ANALYTICS SECTION -->
+      <section id="section-analytics" class="section">
+        <div class="chart-row">
+          <div class="chart-box chart-box--full">
+            <div class="chart-title">Voltage Trend — All Devices</div>
+            <canvas id="voltageChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-box chart-box--full">
+            <div class="chart-title">Temperature Trend — All Devices</div>
+            <canvas id="tempChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ALERTS SECTION -->
+      <section id="section-alerts" class="section">
+        <div class="alerts-list" id="alerts-list"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
