@@ -9,8 +9,18 @@ const db = supabase.createClient(
     supabaseKey
 );
 
-console.log(supabaseKey);
-const supabaseKey = "....";
+async function testSupabase(){
+
+ const {data,error}=await db
+ .from("BMS_Data")
+ .select("*");
+
+ console.log("DATA:",data);
+ console.log("ERROR:",error);
+
+}
+
+testSupabase();
 
 /*
 async function testSupabase()
