@@ -18,9 +18,6 @@ async function testSupabase()
     console.log(data);
     console.log(error);
 }
-console.log(supabaseKey);
-const supabaseKey = "....";
-
 testSupabase();
 // ── AUTH ──────────────────────────────────
 const USERS = { admin:'admin123', sodion:'sodion123', operator:'op2024' };
