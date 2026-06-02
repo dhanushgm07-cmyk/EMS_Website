@@ -9,6 +9,10 @@ const db = supabase.createClient(
     supabaseKey
 );
 
+console.log(supabaseKey);
+const supabaseKey = "....";
+
+/*
 async function testSupabase()
 {
     const { data, error } = await db
@@ -19,6 +23,7 @@ async function testSupabase()
     console.log(error);
 }
 testSupabase();
+*/
 // ── AUTH ──────────────────────────────────
 const USERS = { admin:'admin123', sodion:'sodion123', operator:'op2024' };
 
