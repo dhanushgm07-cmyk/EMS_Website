@@ -1,7 +1,26 @@
 /* ═══════════════════════════════════════════
    EMS — script.js  (UIBakery style)
 ═══════════════════════════════════════════ */
+const supabaseUrl = "https://xfozfhopqxokmdcgyhqy.supabase.co";
 
+const supabaseKey = "sb_publishable_yx3wAYXNdfYo8HwrmDUryQ_idY6gR7z";
+
+const db = supabase.createClient(
+    supabaseUrl,
+    supabaseKey
+);
+
+async function testSupabase()
+{
+    const { data, error } = await db
+        .from("BMS_Data")
+        .select("*");
+
+    console.log(data);
+    console.log(error);
+}
+
+testSupabase();
 // ── AUTH ──────────────────────────────────
 const USERS = { admin:'admin123', sodion:'sodion123', operator:'op2024' };
 
