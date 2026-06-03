@@ -146,7 +146,7 @@ function generateHourlyData() {
   return data;
 }
 
-const RAW_DATA = generateHourlyData();
+let RAW_DATA = [];
 
 function getFiltered() {
   const pack = document.getElementById('sel-pack')?.value || 'All Packs';
