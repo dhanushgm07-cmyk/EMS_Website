@@ -44,7 +44,7 @@ async function getBMSData()
     latest.Pv_power;
 
     document.getElementById("kpi-power).innerHTML=
-    latest.power;
+    latest.Power;
 
 
     // convert Supabase data for charts
@@ -67,7 +67,7 @@ async function getBMSData()
 
         pv:row.Pv_power
 
-        power.row.power
+        power.row.Power
     }));
 
 
