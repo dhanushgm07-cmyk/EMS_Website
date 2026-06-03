@@ -9,31 +9,38 @@ const db = supabase.createClient(
     supabaseKey
 );
 
-async function testSupabase(){
-
- const {data,error}=await db
- .from("BMS_Data")
- .select("*");
-
- console.log("DATA:",data);
- console.log("ERROR:",error);
-
-}
-
-testSupabase();
-
-/*
-async function testSupabase()
+async function getBMSData()
 {
-    const { data, error } = await db
-        .from("BMS_Data")
-        .select("*");
+    const {data,error}=await db
+    .from("BMS_Data")
+    .select("*")
+    .order("created_at",{ascending:false})
+    .limit(1);
 
-    console.log(data);
-    console.log(error);
+    if(error)
+    {
+        console.log(error);
+        return;
+    }
+
+    let bms=data[0];
+
+    document.getElementById("soc-value").innerHTML =
+    bms.Soc;
+
+    document.getElementById("voltage-value").innerHTML =
+    bms.Voltage;
+
+    document.getElementById("current-value").innerHTML =
+    bms.Current;
+
+    document.getElementById("temperature-value").innerHTML =
+    bms.Temperature;
 }
-testSupabase();
-*/
+
+getBMSData();
+
+
 // ── AUTH ──────────────────────────────────
 const USERS = { admin:'admin123', sodion:'sodion123', operator:'op2024' };
 
