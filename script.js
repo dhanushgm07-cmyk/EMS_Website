@@ -542,8 +542,8 @@ function initDashboard() {
   buildReports();
 
   // Live update every 5s
- /* setInterval(()=>{
-    updateKPIs();
+  setInterval(()=>{
+    //updateKPIs();
     buildLineChart();
-  }, 5000); */
+  }, 5000); 
 }
