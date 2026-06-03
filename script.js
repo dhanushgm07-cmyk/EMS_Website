@@ -65,9 +65,9 @@ async function getBMSData()
 
         temp:row.Temperature,
 
-        pv:row.Pv_power
+        pv:row.Pv_power,
 
-        power.row.Power
+        power:row.Power
     }));
 
 
