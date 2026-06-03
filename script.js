@@ -25,21 +25,13 @@ async function getBMSData()
 
     let bms=data[0];
 
-    document.getElementById("soc-value").innerHTML =
-    bms.Soc;
-
-    document.getElementById("voltage-value").innerHTML =
-    bms.Voltage;
-
-    document.getElementById("current-value").innerHTML =
-    bms.Current;
-
-    document.getElementById("temperature-value").innerHTML =
-    bms.Temperature;
+    document.getElementById("soc-value").innerHTML = bms.Soc;
+    document.getElementById("voltage-value").innerHTML = bms.Voltage;
+    document.getElementById("current-value").innerHTML = bms.Current;
+    document.getElementById("temperature-value").innerHTML = bms.Temperature;
 }
 
 getBMSData();
-
 
 // ── AUTH ──────────────────────────────────
 const USERS = { admin:'admin123', sodion:'sodion123', operator:'op2024' };
