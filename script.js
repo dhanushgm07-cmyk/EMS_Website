@@ -25,10 +25,20 @@ async function getBMSData()
 
     let bms=data[0];
 
-    document.getElementById("soc-value").innerHTML = bms.Soc;
-    document.getElementById("voltage-value").innerHTML = bms.Voltage;
-    document.getElementById("current-value").innerHTML = bms.Current;
-    document.getElementById("temperature-value").innerHTML = bms.Temperature;
+document.getElementById("kpi-soc").innerHTML =
+bms.Soc;
+
+document.getElementById("kpi-voltage").innerHTML =
+bms.Voltage;
+
+document.getElementById("kpi-current").innerHTML =
+bms.Current;
+
+document.getElementById("kpi-temp").innerHTML =
+bms.Temperature;
+
+document.getElementById("kpi-pv").innerHTML =
+bms.Pv_power;
 }
 
 getBMSData();
