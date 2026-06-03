@@ -15,7 +15,7 @@ async function getBMSData()
     .from("BMS_Data")
     .select("*")
     .order("created_at",{ascending:false})
-    .limit(1);
+    .limit(50);
 
     if(error)
     {
@@ -23,24 +23,57 @@ async function getBMSData()
         return;
     }
 
-    let bms=data[0];
 
+    let latest=data[0];
+
+
+    // KPI UPDATE
     document.getElementById("kpi-soc").innerHTML =
-    bms.Soc;
+    latest.Soc;
 
     document.getElementById("kpi-voltage").innerHTML =
-    bms.Voltage;
+    latest.Voltage;
 
     document.getElementById("kpi-current").innerHTML =
-    bms.Current;
+    latest.Current;
 
     document.getElementById("kpi-temp").innerHTML =
-    bms.Temperature;
+    latest.Temperature;
 
     document.getElementById("kpi-pv").innerHTML =
-    bms.Pv_power;
+    latest.Pv_power;
+
+
+    // convert Supabase data for charts
+
+    RAW_DATA = data.map(row => ({
+        hour:new Date(row.created_at)
+        .getHours()+":00",
+
+        pack:"Pack 1",
+
+        soc:row.Soc,
+
+        voltage:row.Voltage,
+
+        current:row.Current,
+
+        power:(row.Voltage * row.Current)/1000,
+
+        temp:row.Temperature,
+
+        pv:row.Pv_power
+    }));
+
+
+    buildLineChart();
+    buildBarChart();
 }
+
+
 getBMSData();
+
+setInterval(getBMSData,5000);
 
 // ── AUTH ──────────────────────────────────
 const USERS = { admin:'admin123', sodion:'sodion123', operator:'op2024' };
@@ -534,12 +567,8 @@ function showToast(msg) {
 
 // ── INIT ──────────────────────────────────
 function initDashboard() {
-  updateKPIs();
-  buildLineChart();
-  buildBarChart();
-  buildHeatmap();
-  buildAlerts();
-  buildReports();
+
+  getBMSData();
 
   // Live update every 5s
   setInterval(()=>{
