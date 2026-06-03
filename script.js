@@ -103,7 +103,7 @@ function setLocation(loc) {
 }
 
 // ── DATA GENERATION ───────────────────────
-function rand(min, max, dec=0) { return parseFloat((Math.random()*(max-min)+min).toFixed(dec)); }
+//function rand(min, max, dec=0) { return parseFloat((Math.random()*(max-min)+min).toFixed(dec)); }
 
 function generateHourlyData() {
   const packs = ['Pack 1','Pack 2','Pack 3','Pack 4','Pack 5','Pack 6'];
