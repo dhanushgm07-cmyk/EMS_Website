@@ -60,6 +60,7 @@ async function getBMSData()
     buildLineChart();
     buildBarChart();
 }
+
 getBMSData();
 setInterval(getBMSData,5000);
 
