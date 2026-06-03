@@ -23,11 +23,9 @@ async function getBMSData()
         return;
     }
 
-
     let latest=data[0];
 
 
-    // KPI UPDATE
     document.getElementById("kpi-soc").innerHTML =
     latest.Soc;
 
@@ -43,41 +41,26 @@ async function getBMSData()
     document.getElementById("kpi-pv").innerHTML =
     latest.Pv_power;
 
-    document.getElementById("kpi-power).innerHTML=
+    document.getElementById("kpi-power").innerHTML =
     latest.Power;
 
 
-    // convert Supabase data for charts
-
     RAW_DATA = data.map(row => ({
-        hour:new Date(row.created_at)
-        .getHours()+":00",
-
+        hour:new Date(row.created_at).getHours()+":00",
         pack:"Pack 1",
-
         soc:row.Soc,
-
         voltage:row.Voltage,
-
         current:row.Current,
-
-        power:(row.Voltage * row.Current)/1000,
-
+        power:row.Power,
         temp:row.Temperature,
-
-        pv:row.Pv_power,
-
-        power:row.Power
+        pv:row.Pv_power
     }));
 
 
     buildLineChart();
     buildBarChart();
 }
-
-
 getBMSData();
-
 setInterval(getBMSData,5000);
 
 // ── AUTH ──────────────────────────────────
