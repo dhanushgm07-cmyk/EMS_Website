@@ -25,22 +25,21 @@ async function getBMSData()
 
     let bms=data[0];
 
-document.getElementById("kpi-soc").innerHTML =
-bms.Soc;
+    document.getElementById("kpi-soc").innerHTML =
+    bms.Soc;
 
-document.getElementById("kpi-voltage").innerHTML =
-bms.Voltage;
+    document.getElementById("kpi-voltage").innerHTML =
+    bms.Voltage;
 
-document.getElementById("kpi-current").innerHTML =
-bms.Current;
+    document.getElementById("kpi-current").innerHTML =
+    bms.Current;
 
-document.getElementById("kpi-temp").innerHTML =
-bms.Temperature;
+    document.getElementById("kpi-temp").innerHTML =
+    bms.Temperature;
 
-document.getElementById("kpi-pv").innerHTML =
-bms.Pv_power;
+    document.getElementById("kpi-pv").innerHTML =
+    bms.Pv_power;
 }
-
 getBMSData();
 
 // ── AUTH ──────────────────────────────────
