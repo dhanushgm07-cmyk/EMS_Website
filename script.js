@@ -1,6 +1,68 @@
 /* ═══════════════════════════════════════════
    EMS — script.js  (UIBakery style)
 ═══════════════════════════════════════════ */
+const supabaseUrl = "https://xfozfhopqxokmdcgyhqy.supabase.co";
+
+const supabaseKey = "sb_publishable_yx3wAYXNdfYo8HwrmDUryQ_idY6gR7z";
+const db = supabase.createClient(
+    supabaseUrl,
+    supabaseKey
+);
+
+async function getBMSData()
+{
+    const {data,error}=await db
+    .from("BMS_Data")
+    .select("*")
+    .order("created_at",{ascending:false})
+    .limit(50);
+
+    if(error)
+    {
+        console.log(error);
+        return;
+    }
+
+    let latest=data[0];
+
+
+    document.getElementById("kpi-soc").innerHTML =
+    latest.Soc;
+
+    document.getElementById("kpi-voltage").innerHTML =
+    latest.Voltage;
+
+    document.getElementById("kpi-current").innerHTML =
+    latest.Current;
+
+    document.getElementById("kpi-temp").innerHTML =
+    latest.Temperature;
+
+    document.getElementById("kpi-pv").innerHTML =
+    latest.Pv_power;
+
+    document.getElementById("kpi-power").innerHTML =
+    latest.Power;
+
+
+    RAW_DATA = data.map(row => ({
+        hour:new Date(row.created_at).getHours()+":00",
+        pack:"Pack 1",
+        soc:row.Soc,
+        voltage:row.Voltage,
+        current:row.Current,
+        power:row.Power,
+        temp:row.Temperature,
+        pv:row.Pv_power
+    }));
+
+
+    buildLineChart();
+    buildBarChart();
+}
+
+getBMSData();
+setInterval(getBMSData,5000);
 
 // ── AUTH ──────────────────────────────────
 const USERS = { admin:'admin123', sodion:'sodion123', operator:'op2024' };
@@ -63,7 +125,7 @@ function setLocation(loc) {
 }
 
 // ── DATA GENERATION ───────────────────────
-function rand(min, max, dec=0) { return parseFloat((Math.random()*(max-min)+min).toFixed(dec)); }
+//function rand(min, max, dec=0) { return parseFloat((Math.random()*(max-min)+min).toFixed(dec)); }
 
 function generateHourlyData() {
   const packs = ['Pack 1','Pack 2','Pack 3','Pack 4','Pack 5','Pack 6'];
@@ -84,7 +146,7 @@ function generateHourlyData() {
   return data;
 }
 
-const RAW_DATA = generateHourlyData();
+let RAW_DATA = [];
 
 function getFiltered() {
   const pack = document.getElementById('sel-pack')?.value || 'All Packs';
@@ -494,16 +556,12 @@ function showToast(msg) {
 
 // ── INIT ──────────────────────────────────
 function initDashboard() {
-  updateKPIs();
-  buildLineChart();
-  buildBarChart();
-  buildHeatmap();
-  buildAlerts();
-  buildReports();
+
+  getBMSData();
 
   // Live update every 5s
   setInterval(()=>{
-    updateKPIs();
+    //updateKPIs();
     buildLineChart();
-  }, 5000);
+  }, 5000); 
 }
