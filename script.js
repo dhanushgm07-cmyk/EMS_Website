@@ -100,11 +100,11 @@ async function buildHeatmap()
 
         let status;
 
-        if (voltage < 3.1 || voltage > 3.5)
+        if (voltage <= 1.6 || voltage >= 3.0)
         {
             status = "alert";
         }
-        else if (voltage < 3.2 || voltage > 3.4)
+        else if (voltage <= 1.8 || voltage >= 2.8)
         {
             status = "caution";
         }
