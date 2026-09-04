@@ -125,7 +125,7 @@ async function buildHeatmap()
         }
         else
         {
-            bg = "#25D366";
+            bg = "#A7B89C";
         }
 
         const el = document.createElement("div");
