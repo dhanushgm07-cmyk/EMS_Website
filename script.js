@@ -982,7 +982,7 @@ async function buildHeatmap()
         else
         {
             status = 'balanced';
-            bg = '#25D360';
+            bg = '#A7B89C';
         }
 
 
