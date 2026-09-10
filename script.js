@@ -969,12 +969,12 @@ async function buildHeatmap()
         let bg;
 
 
-        if(voltage <= 1.6 || voltage >= 3.0)
+        if(voltage <= 1.6 || voltage >= 3.6)
         {
             status = 'alert';
             bg = '#D75B5B';
         }
-        else if(voltage <= 1.8 || voltage >= 2.8)
+        else if(voltage <= 2.2 || voltage >= 3.5)
         {
             status = 'caution';
             bg = '#E0A25B';
