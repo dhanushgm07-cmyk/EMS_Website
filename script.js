@@ -33,31 +33,31 @@ async function getBMSData()
     if(!data || data.length === 0)
         return;
 
-    let latest = data[0];
+    const latest = data[0];
 
-    document.getElementById("kpi-soc").innerHTML =
-        latest.Soc;
+    // Update values directly — no animation/blinking
+    document.getElementById("kpi-soc").textContent =
+        Number(latest.Soc || 0).toFixed(1);
 
-    document.getElementById("kpi-voltage").innerHTML =
-        latest.Voltage;
+    document.getElementById("kpi-voltage").textContent =
+        Number(latest.Voltage || 0).toFixed(1);
 
-    document.getElementById("kpi-current").innerHTML =
-        latest.Current;
+    document.getElementById("kpi-current").textContent =
+        Number(latest.Current || 0).toFixed(1);
 
-    document.getElementById("kpi-temp").innerHTML =
-        latest.Temperature;
+    document.getElementById("kpi-temp").textContent =
+        Number(latest.Temperature || 0).toFixed(1);
 
-    document.getElementById("kpi-pv").innerHTML =
-        latest.Pv_power;
+    document.getElementById("kpi-pv").textContent =
+        Number(latest.Pv_power || 0).toFixed(1);
 
-    document.getElementById("kpi-power").innerHTML =
-        latest.Power;
+    document.getElementById("kpi-power").textContent =
+        Number(latest.Power || 0).toFixed(1);
 
 
     RAW_DATA = data.map(row => ({
         hour: new Date(row.created_at).getHours() + ":00",
 
-        // Current BMS table represents the overall system.
         pack: "Pack 1",
 
         soc: Number(row.Soc) || 0,
@@ -69,16 +69,14 @@ async function getBMSData()
     }));
 
 
-    updateKPIs();
-    buildLineChart();
-    buildBarChart();
-    buildHeatmap();
+    updateKPIs(false);
 }
 
 
-// Update every 5 seconds
+// Initial BMS load
 getBMSData();
 
+// Update BMS values every 5 seconds
 setInterval(getBMSData, 5000);
 
 
@@ -95,21 +93,30 @@ const USERS = {
 
 function login()
 {
-    const u = document.getElementById('username').value.trim();
-    const p = document.getElementById('password').value;
+    const u =
+        document.getElementById('username').value.trim();
 
-    const err = document.getElementById('login-error');
+    const p =
+        document.getElementById('password').value;
 
-    if (USERS[u] && USERS[u] === p)
+    const err =
+        document.getElementById('login-error');
+
+
+    if(USERS[u] && USERS[u] === p)
     {
         err.classList.add('hidden');
 
         document.getElementById('user-chip').textContent =
             u[0].toUpperCase();
 
-        document.getElementById('login-page').classList.remove('active');
+        document
+            .getElementById('login-page')
+            .classList.remove('active');
 
-        document.getElementById('dashboard-page').classList.add('active');
+        document
+            .getElementById('dashboard-page')
+            .classList.add('active');
 
         initDashboard();
     }
@@ -122,9 +129,13 @@ function login()
 
 function logout()
 {
-    document.getElementById('dashboard-page').classList.remove('active');
+    document
+        .getElementById('dashboard-page')
+        .classList.remove('active');
 
-    document.getElementById('login-page').classList.add('active');
+    document
+        .getElementById('login-page')
+        .classList.add('active');
 
     document.getElementById('username').value = '';
 
@@ -136,9 +147,11 @@ function logout()
 
 document.addEventListener('keydown', e =>
 {
-    if (
+    if(
         e.key === 'Enter' &&
-        document.getElementById('login-page').classList.contains('active')
+        document
+            .getElementById('login-page')
+            .classList.contains('active')
     )
     {
         login();
@@ -155,10 +168,16 @@ setInterval(() =>
     const n = new Date();
 
     const pad = v =>
-        String(v).padStart(2, '0');
+        String(v).padStart(2,'0');
 
-    document.getElementById('clock').textContent =
-        `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+    const clock =
+        document.getElementById('clock');
+
+    if(clock)
+    {
+        clock.textContent =
+            `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+    }
 
 }, 1000);
 
@@ -177,12 +196,17 @@ function switchTab(name, btn)
         .querySelectorAll('.tab')
         .forEach(b => b.classList.remove('active'));
 
-    document
-        .getElementById('tab-' + name)
-        .classList.remove('hidden');
+
+    const panel =
+        document.getElementById('tab-' + name);
+
+    if(panel)
+        panel.classList.remove('hidden');
+
 
     if(btn)
         btn.classList.add('active');
+
 
     if(name === 'trends')
         buildTrendChart(currentRange);
@@ -201,14 +225,13 @@ let selectedLocation = '';
 
 function onFilterChange()
 {
-    updateKPIs();
+    updateKPIs(true);
 
     buildLineChart();
 
     buildBarChart();
 
-    // IMPORTANT:
-    // Rebuild heatmap when Pack selection changes.
+    // Heatmap updates only when pack changes
     buildHeatmap();
 }
 
@@ -229,7 +252,8 @@ function setLocation(loc)
 {
     selectedLocation = loc;
 
-    document.getElementById('loc-label').textContent = loc;
+    document.getElementById('loc-label').textContent =
+        loc;
 
     document
         .getElementById('loc-pill')
@@ -251,16 +275,17 @@ let RAW_DATA = [];
 function getFiltered()
 {
     const pack =
-        document.getElementById('sel-pack')?.value || 'All Packs';
+        document.getElementById('sel-pack')?.value
+        || 'Pack 1';
 
-    return RAW_DATA.filter(d =>
-        pack === 'All Packs' || d.pack === pack
+    return RAW_DATA.filter(
+        d => d.pack === pack
     );
 }
 
 
 // ═══════════════════════════════════════════
-// KPI CALCULATIONS
+// KPI
 // ═══════════════════════════════════════════
 
 function calcKPIs(data)
@@ -277,23 +302,31 @@ function calcKPIs(data)
         };
     }
 
+
     const avgSOC =
-        data.reduce((s,d) => s + d.soc, 0) / data.length;
+        data.reduce((s,d) => s + d.soc, 0)
+        / data.length;
 
     const avgVoltage =
-        data.reduce((s,d) => s + d.voltage, 0) / data.length;
+        data.reduce((s,d) => s + d.voltage, 0)
+        / data.length;
 
     const avgCurrent =
-        data.reduce((s,d) => s + d.current, 0) / data.length;
+        data.reduce((s,d) => s + d.current, 0)
+        / data.length;
 
     const avgTemp =
-        data.reduce((s,d) => s + d.temp, 0) / data.length;
+        data.reduce((s,d) => s + d.temp, 0)
+        / data.length;
 
     const avgPower =
-        data.reduce((s,d) => s + d.power, 0) / data.length;
+        data.reduce((s,d) => s + d.power, 0)
+        / data.length;
 
     const avgPV =
-        data.reduce((s,d) => s + d.pv, 0) / data.length;
+        data.reduce((s,d) => s + d.pv, 0)
+        / data.length;
+
 
     return {
         soc: avgSOC,
@@ -310,57 +343,34 @@ function calcKPIs(data)
 // KPI CARDS
 // ═══════════════════════════════════════════
 
-function animateValue(id, target)
+function updateKPIs(showAnimation = false)
 {
-    const el = document.getElementById(id);
+    const kpis =
+        calcKPIs(getFiltered());
 
-    if(!el)
-        return;
 
-    if(!Number.isFinite(target))
-        target = 0;
-
-    let current = 0;
-
-    const step = target / 40;
-
-    const iv = setInterval(() =>
+    const setValue = (id, value) =>
     {
-        current += step;
+        const el =
+            document.getElementById(id);
 
-        if(
-            (step >= 0 && current >= target) ||
-            (step < 0 && current <= target)
-        )
-        {
-            el.textContent = target.toFixed(1);
-
-            clearInterval(iv);
-        }
-        else
-        {
-            el.textContent = current.toFixed(1);
-        }
-
-    }, 25);
-}
+        if(el)
+            el.textContent =
+                Number(value || 0).toFixed(1);
+    };
 
 
-function updateKPIs()
-{
-    const kpis = calcKPIs(getFiltered());
+    setValue('kpi-soc', kpis.soc);
 
-    animateValue('kpi-soc', kpis.soc);
+    setValue('kpi-voltage', kpis.voltage);
 
-    animateValue('kpi-voltage', kpis.voltage);
+    setValue('kpi-current', kpis.current);
 
-    animateValue('kpi-current', kpis.current);
+    setValue('kpi-temp', kpis.temp);
 
-    animateValue('kpi-temp', kpis.temp);
+    setValue('kpi-power', Math.abs(kpis.power));
 
-    animateValue('kpi-power', Math.abs(kpis.power));
-
-    animateValue('kpi-pv', kpis.pv);
+    setValue('kpi-pv', kpis.pv);
 
 
     const currTrend =
@@ -372,19 +382,31 @@ function updateKPIs()
 
     if(kpis.current > 0)
     {
-        currTrend.textContent = 'Charging';
-        currTrend.className = 'kpi-trend up';
+        if(currTrend)
+        {
+            currTrend.textContent = 'Charging';
+            currTrend.className = 'kpi-trend up';
+        }
 
-        powTrend.textContent = 'Charging';
-        powTrend.className = 'kpi-trend up';
+        if(powTrend)
+        {
+            powTrend.textContent = 'Charging';
+            powTrend.className = 'kpi-trend up';
+        }
     }
     else
     {
-        currTrend.textContent = 'Discharging';
-        currTrend.className = 'kpi-trend down';
+        if(currTrend)
+        {
+            currTrend.textContent = 'Discharging';
+            currTrend.className = 'kpi-trend down';
+        }
 
-        powTrend.textContent = 'Discharging';
-        powTrend.className = 'kpi-trend down';
+        if(powTrend)
+        {
+            powTrend.textContent = 'Discharging';
+            powTrend.className = 'kpi-trend down';
+        }
     }
 }
 
@@ -400,11 +422,13 @@ let trendChart = null;
 
 function destroyCharts()
 {
-    [lineChart, barChart, trendChart].forEach(c =>
-    {
-        if(c)
-            c.destroy();
-    });
+    [lineChart, barChart, trendChart]
+        .forEach(c =>
+        {
+            if(c)
+                c.destroy();
+        });
+
 
     lineChart = null;
     barChart = null;
@@ -503,6 +527,7 @@ function buildLineChart()
             };
         }
 
+
         byHour[d.hour].power += d.power;
 
         byHour[d.hour].pv += d.pv;
@@ -517,13 +542,15 @@ function buildLineChart()
 
     const powerVals =
         labels.map(l =>
-            byHour[l].power / byHour[l].count
+            byHour[l].power /
+            byHour[l].count
         );
 
 
     const pvVals =
         labels.map(l =>
-            byHour[l].pv / byHour[l].count
+            byHour[l].pv /
+            byHour[l].count
         );
 
 
@@ -538,67 +565,70 @@ function buildLineChart()
         lineChart.destroy();
 
 
-    lineChart = new Chart(ctx,
-    {
-        type: 'line',
-
-        data:
+    lineChart =
+        new Chart(ctx,
         {
-            labels,
+            type: 'line',
 
-            datasets:
-            [
+            data:
+            {
+                labels,
+
+                datasets:
+                [
+                    {
+                        label:
+                            'Charge/Discharge Power (kW)',
+
+                        data: powerVals,
+
+                        borderColor: '#FF924C',
+
+                        backgroundColor:
+                            'rgba(255,146,76,0.08)',
+
+                        borderWidth: 2,
+
+                        fill: true,
+
+                        tension: 0.4,
+
+                        pointRadius: 3
+                    },
+
+                    {
+                        label: 'PV Input (kW)',
+
+                        data: pvVals,
+
+                        borderColor: '#3FB950',
+
+                        backgroundColor:
+                            'rgba(63,185,80,0.08)',
+
+                        borderWidth: 2,
+
+                        fill: true,
+
+                        tension: 0.4,
+
+                        pointRadius: 3
+                    }
+                ]
+            },
+
+            options:
+            {
+                ...CHART_DEFAULTS,
+
+                aspectRatio: 2,
+
+                animation:
                 {
-                    label: 'Charge/Discharge Power (kW)',
-
-                    data: powerVals,
-
-                    borderColor: '#FF924C',
-
-                    backgroundColor:
-                        'rgba(255,146,76,0.08)',
-
-                    borderWidth: 2,
-
-                    fill: true,
-
-                    tension: 0.4,
-
-                    pointRadius: 3,
-
-                    pointBackgroundColor: '#FF924C'
-                },
-
-                {
-                    label: 'PV Input (kW)',
-
-                    data: pvVals,
-
-                    borderColor: '#3FB950',
-
-                    backgroundColor:
-                        'rgba(63,185,80,0.08)',
-
-                    borderWidth: 2,
-
-                    fill: true,
-
-                    tension: 0.4,
-
-                    pointRadius: 3,
-
-                    pointBackgroundColor: '#3FB950'
+                    duration: 400
                 }
-            ]
-        },
-
-        options:
-        {
-            ...CHART_DEFAULTS,
-
-            aspectRatio: 2
-        }
-    });
+            }
+        });
 }
 
 
@@ -609,6 +639,7 @@ function buildLineChart()
 function buildBarChart()
 {
     const data = getFiltered();
+
 
     const packs =
     [
@@ -632,28 +663,38 @@ function buildBarChart()
     ];
 
 
-    const voltage = packs.map(pack =>
-    {
-        const filtered =
-            data.filter(d => d.pack === pack);
+    const voltage =
+        packs.map(pack =>
+        {
+            const filtered =
+                data.filter(
+                    d => d.pack === pack
+                );
 
-        return filtered.length
-            ? filtered.reduce((s,d) => s + d.voltage, 0)
-                / filtered.length
-            : 0;
-    });
+            return filtered.length
+                ? filtered.reduce(
+                    (s,d) => s + d.voltage,
+                    0
+                  ) / filtered.length
+                : 0;
+        });
 
 
-    const soc = packs.map(pack =>
-    {
-        const filtered =
-            data.filter(d => d.pack === pack);
+    const soc =
+        packs.map(pack =>
+        {
+            const filtered =
+                data.filter(
+                    d => d.pack === pack
+                );
 
-        return filtered.length
-            ? filtered.reduce((s,d) => s + d.soc, 0)
-                / filtered.length
-            : 0;
-    });
+            return filtered.length
+                ? filtered.reduce(
+                    (s,d) => s + d.soc,
+                    0
+                  ) / filtered.length
+                : 0;
+        });
 
 
     const ctx =
@@ -667,116 +708,52 @@ function buildBarChart()
         barChart.destroy();
 
 
-    barChart = new Chart(ctx,
-    {
-        type: 'bar',
-
-        data:
+    barChart =
+        new Chart(ctx,
         {
-            labels: packs,
+            type: 'bar',
 
-            datasets:
-            [
-                {
-                    label: 'Voltage (V)',
-
-                    data: voltage,
-
-                    backgroundColor: colors,
-
-                    borderRadius: 6,
-
-                    yAxisID: 'y'
-                },
-
-                {
-                    label: 'SOC (%)',
-
-                    data: soc,
-
-                    backgroundColor:
-                        'rgba(167,184,156,0.5)',
-
-                    borderRadius: 6,
-
-                    yAxisID: 'y1'
-                }
-            ]
-        },
-
-        options:
-        {
-            ...CHART_DEFAULTS,
-
-            aspectRatio: 2,
-
-            scales:
+            data:
             {
-                x:
-                {
-                    grid:
+                labels: packs,
+
+                datasets:
+                [
                     {
-                        color: '#E0E0E0'
+                        label: 'Voltage (V)',
+
+                        data: voltage,
+
+                        backgroundColor: colors,
+
+                        borderRadius: 6
                     },
 
-                    ticks:
                     {
-                        font:
-                        {
-                            family: 'Inter',
-                            size: 11
-                        },
+                        label: 'SOC (%)',
 
-                        color: '#6B6B6B'
+                        data: soc,
+
+                        backgroundColor:
+                            'rgba(167,184,156,0.5)',
+
+                        borderRadius: 6
                     }
-                },
+                ]
+            },
 
-                y:
+            options:
+            {
+                ...CHART_DEFAULTS,
+
+                aspectRatio: 2,
+
+                animation:
                 {
-                    grid:
-                    {
-                        color: '#E0E0E0'
-                    },
-
-                    ticks:
-                    {
-                        font:
-                        {
-                            family: 'Inter',
-                            size: 11
-                        },
-
-                        color: '#6B6B6B'
-                    },
-
-                    position: 'left'
-                },
-
-                y1:
-                {
-                    grid:
-                    {
-                        display: false
-                    },
-
-                    ticks:
-                    {
-                        font:
-                        {
-                            family: 'Inter',
-                            size: 11
-                        },
-
-                        color: '#6B6B6B'
-                    },
-
-                    position: 'right',
-
-                    max: 100
+                    duration: 400
                 }
             }
-        }
-    });
+        });
 }
 
 
@@ -793,10 +770,14 @@ function setRange(range, btn)
 
     document
         .querySelectorAll('.rtab')
-        .forEach(b => b.classList.remove('active'));
+        .forEach(b =>
+            b.classList.remove('active')
+        );
+
 
     if(btn)
         btn.classList.add('active');
+
 
     buildTrendChart(range);
 }
@@ -815,229 +796,82 @@ function buildTrendChart(range)
         trendChart.destroy();
 
 
-    let points = 24;
-
-    let labels = [];
-
-    let soc = [];
-
-    let power = [];
-
-    let anomalies = [];
+    const data =
+        getFiltered();
 
 
-    if(range === 'weekly')
-        points = 7;
-
-    if(range === 'monthly')
-        points = 30;
-
-    if(range === 'yearly')
-        points = 12;
+    const labels =
+        data.map(d => d.hour);
 
 
-    const months =
-    [
-        'Jan','Feb','Mar','Apr','May','Jun',
-        'Jul','Aug','Sep','Oct','Nov','Dec'
-    ];
+    const soc =
+        data.map(d => d.soc);
 
 
-    for(let i = points - 1; i >= 0; i--)
-    {
-        if(range === 'daily')
+    const power =
+        data.map(d => d.power);
+
+
+    trendChart =
+        new Chart(ctx,
         {
-            labels.push(
-                `${String(24 - i).padStart(2,'0')}:00`
-            );
-        }
-        else if(range === 'yearly')
-        {
-            labels.push(
-                months[(12 - i) % 12]
-            );
-        }
-        else
-        {
-            const d = new Date();
+            type: 'line',
 
-            d.setDate(d.getDate() - i);
-
-            labels.push(
-                d.toLocaleDateString(
-                    'en-US',
-                    {
-                        month: 'short',
-                        day: 'numeric'
-                    }
-                )
-            );
-        }
-
-
-        const sourceData = getFiltered();
-
-        const index =
-            Math.max(
-                0,
-                sourceData.length - 1 - i
-            );
-
-
-        if(sourceData.length > 0)
-        {
-            const row = sourceData[index];
-
-            soc.push(Number(row.soc) || 0);
-
-            power.push(Number(row.power) || 0);
-        }
-        else
-        {
-            soc.push(0);
-
-            power.push(0);
-        }
-
-        anomalies.push(false);
-    }
-
-
-    trendChart = new Chart(ctx,
-    {
-        type: 'line',
-
-        data:
-        {
-            labels,
-
-            datasets:
-            [
-                {
-                    label: 'Power (kW)',
-
-                    data: power,
-
-                    borderColor: '#FF924C',
-
-                    backgroundColor:
-                        'rgba(255,146,76,0.06)',
-
-                    borderWidth: 2,
-
-                    fill: true,
-
-                    tension: 0.35,
-
-                    yAxisID: 'y',
-
-                    pointRadius: 3,
-
-                    pointBackgroundColor: '#FF924C'
-                },
-
-                {
-                    label: 'SOC (%)',
-
-                    data: soc,
-
-                    borderColor: '#A7B89C',
-
-                    borderWidth: 2,
-
-                    fill: false,
-
-                    tension: 0.35,
-
-                    pointRadius: 3,
-
-                    pointBackgroundColor: '#A7B89C',
-
-                    yAxisID: 'y1'
-                }
-            ]
-        },
-
-        options:
-        {
-            ...CHART_DEFAULTS,
-
-            aspectRatio: 2.8,
-
-            scales:
+            data:
             {
-                x:
-                {
-                    grid:
+                labels,
+
+                datasets:
+                [
                     {
-                        color: '#E0E0E0'
+                        label: 'Power (kW)',
+
+                        data: power,
+
+                        borderColor: '#FF924C',
+
+                        backgroundColor:
+                            'rgba(255,146,76,0.06)',
+
+                        borderWidth: 2,
+
+                        fill: true,
+
+                        tension: 0.35,
+
+                        pointRadius: 3
                     },
 
-                    ticks:
                     {
-                        font:
-                        {
-                            family: 'Inter',
-                            size: 11
-                        },
+                        label: 'SOC (%)',
 
-                        color: '#6B6B6B',
+                        data: soc,
 
-                        maxRotation: 45
+                        borderColor: '#A7B89C',
+
+                        borderWidth: 2,
+
+                        fill: false,
+
+                        tension: 0.35,
+
+                        pointRadius: 3
                     }
-                },
+                ]
+            },
 
-                y:
-                {
-                    grid:
-                    {
-                        color: '#E0E0E0'
-                    },
+            options:
+            {
+                ...CHART_DEFAULTS,
 
-                    ticks:
-                    {
-                        font:
-                        {
-                            family: 'Inter',
-                            size: 11
-                        },
-
-                        color: '#6B6B6B'
-                    },
-
-                    position: 'left'
-                },
-
-                y1:
-                {
-                    grid:
-                    {
-                        display: false
-                    },
-
-                    ticks:
-                    {
-                        font:
-                        {
-                            family: 'Inter',
-                            size: 11
-                        },
-
-                        color: '#6B6B6B'
-                    },
-
-                    position: 'right',
-
-                    max: 100
-                }
+                aspectRatio: 2.8
             }
-        }
-    });
+        });
 }
 
 
 // ═══════════════════════════════════════════
-// PACK TABLE MAP
+// PACK TABLES
 // ═══════════════════════════════════════════
 
 const PACK_TABLES =
@@ -1069,51 +903,20 @@ async function buildHeatmap()
         || 'Pack 1';
 
 
-    // All Packs cannot show a single
-    // 16-cell heatmap.
-    if(selectedPack === 'All Packs')
-    {
-        grid.innerHTML =
-            `
-            <div style="padding:20px;">
-                Select a specific pack to view cell voltages.
-            </div>
-            `;
-
-        return;
-    }
-
-
     const tableName =
         PACK_TABLES[selectedPack];
 
 
     if(!tableName)
-    {
-        grid.innerHTML =
-            `
-            <div style="padding:20px;">
-                Invalid pack selected.
-            </div>
-            `;
-
         return;
-    }
-
-
-    grid.innerHTML =
-        `
-        <div style="padding:20px;">
-            Loading ${selectedPack}...
-        </div>
-        `;
 
 
     const { data, error } =
         await db
             .from(tableName)
             .select('*')
-            .order('created_at', { ascending: false })
+            .order('created_at',
+                   { ascending: false })
             .limit(1);
 
 
@@ -1123,13 +926,6 @@ async function buildHeatmap()
             `${selectedPack} heatmap error:`,
             error
         );
-
-        grid.innerHTML =
-            `
-            <div style="padding:20px;">
-                No data available for ${selectedPack}.
-            </div>
-            `;
 
         return;
     }
@@ -1151,14 +947,15 @@ async function buildHeatmap()
     const latest = data[0];
 
 
+    // Build only when pack changes
     grid.innerHTML = '';
 
 
-    // 16 cells = 4 × 4
     for(let i = 1; i <= 16; i++)
     {
         const value =
             latest[`Cell_${i}`];
+
 
         const voltage =
             Number(value);
@@ -1172,7 +969,6 @@ async function buildHeatmap()
         let bg;
 
 
-        // Sodium-ion thresholds
         if(voltage <= 1.6 || voltage >= 3.0)
         {
             status = 'alert';
@@ -1186,7 +982,7 @@ async function buildHeatmap()
         else
         {
             status = 'balanced';
-            bg = '#A7B89C';
+            bg = '#25D366';
         }
 
 
@@ -1210,25 +1006,19 @@ async function buildHeatmap()
             </div>
 
             <div class="z-tip">
-
                 <strong>
                     ${selectedPack} — Cell ${i}
                 </strong>
-
                 <br>
-
                 Voltage:
                 <strong>
                     ${voltage.toFixed(3)}V
                 </strong>
-
                 <br>
-
                 Status:
                 <strong>
                     ${status}
                 </strong>
-
             </div>
             `;
 
@@ -1237,7 +1027,6 @@ async function buildHeatmap()
     }
 
 
-    // Update heatmap title
     const title =
         document.querySelector(
             '#tab-heatmap .card-title'
@@ -1266,7 +1055,8 @@ const ALERTS =
         time:15,
         threshold:3.35,
         current:3.58,
-        desc:'Cell 12 voltage exceeds safe threshold. Immediate balancing required.'
+        desc:
+            'Cell 12 voltage exceeds safe threshold. Immediate balancing required.'
     },
 
     {
@@ -1277,7 +1067,8 @@ const ALERTS =
         time:45,
         threshold:35,
         current:39,
-        desc:'Pack 2 temperature elevated. Check cooling system.'
+        desc:
+            'Pack 2 temperature elevated. Check cooling system.'
     },
 
     {
@@ -1288,7 +1079,8 @@ const ALERTS =
         time:120,
         threshold:20,
         current:18,
-        desc:'Pack 5 SOC critically low. Charging recommended immediately.'
+        desc:
+            'Pack 5 SOC critically low. Charging recommended immediately.'
     },
 
     {
@@ -1299,7 +1091,8 @@ const ALERTS =
         time:180,
         threshold:0,
         current:0,
-        desc:'Inverter 1 lost CAN communication. Check wiring and power.'
+        desc:
+            'Inverter 1 lost CAN communication. Check wiring and power.'
     },
 
     {
@@ -1310,7 +1103,8 @@ const ALERTS =
         time:240,
         threshold:0,
         current:0,
-        desc:'Routine BMS calibration and cell balancing scheduled.'
+        desc:
+            'Routine BMS calibration and cell balancing scheduled.'
     }
 ];
 
@@ -1320,7 +1114,8 @@ const REPORTS =
     {
         id:'r1',
         title:'Battery Health Summary',
-        summary:'Overall system health at 94%, all packs within spec',
+        summary:
+            'Overall system health at 94%, all packs within spec',
 
         details:
         [
@@ -1341,7 +1136,8 @@ const REPORTS =
     {
         id:'r2',
         title:'Power Flow Analysis',
-        summary:'Charge efficiency at 96.2%, PV utilization 89%',
+        summary:
+            'Charge efficiency at 96.2%, PV utilization 89%',
 
         details:
         [
@@ -1362,7 +1158,8 @@ const REPORTS =
     {
         id:'r3',
         title:'Thermal Management Report',
-        summary:'Temperature range 28-38°C, cooling system optimal',
+        summary:
+            'Temperature range 28-38°C, cooling system optimal',
 
         details:
         [
@@ -1524,6 +1321,7 @@ function buildAlerts()
                     </div>
 
                     <ul>
+
                         <li>
                             Inspect equipment for mechanical issues or faults
                         </li>
@@ -1535,6 +1333,7 @@ function buildAlerts()
                         <li>
                             Contact maintenance if issue persists beyond 2 hours
                         </li>
+
                     </ul>
 
                 </div>
@@ -1609,8 +1408,10 @@ function buildReports()
                     <ul>
                         ${
                             r.details
-                            .map(d => `<li>${d}</li>`)
-                            .join('')
+                                .map(
+                                    d => `<li>${d}</li>`
+                                )
+                                .join('')
                         }
                     </ul>
 
@@ -1629,8 +1430,10 @@ function buildReports()
                     <ul>
                         ${
                             r.recs
-                            .map(rec => `<li>${rec}</li>`)
-                            .join('')
+                                .map(
+                                    rec => `<li>${rec}</li>`
+                                )
+                                .join('')
                         }
                     </ul>
 
@@ -1651,6 +1454,7 @@ function toggleAcc(id)
 
     const chev =
         document.getElementById('chev-' + id);
+
 
     if(!body)
         return;
@@ -1685,7 +1489,9 @@ function showToast(msg)
 
     t.classList.remove('hidden');
 
+
     clearTimeout(toastTimer);
+
 
     toastTimer =
         setTimeout(
