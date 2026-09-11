@@ -108,22 +108,28 @@ async function getBMSData() {
 
 async function getAllPackData() {
 
-  const requests = PACKS.map(async pack => {
+  PACK_DATA = {};
 
-    const table = PACK_TABLES[pack];
+  await Promise.all(
+    PACKS.map(async pack => {
 
-    const { data, error } = await db
-      .from(table)
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(1);
+      const table = PACK_TABLES[pack];
 
-    if (error) {
-      console.error(pack + " ERROR:", error);
-      return;
-    }
+      const { data, error } = await db
+        .from(table)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-    if (data && data.length > 0) {
+      if (error) {
+        console.error(pack + " ERROR:", error);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        console.warn("No data for " + pack);
+        return;
+      }
 
       const row = data[0];
 
@@ -131,41 +137,132 @@ async function getAllPackData() {
 
       for (let i = 1; i <= 16; i++) {
 
-        const value = parseFloat(row[`Cell_${i}`]);
+        const value =
+          parseFloat(row[`Cell_${i}`]);
 
-        if (Number.isFinite(value)) {
-          cells.push(value);
-        } else {
-          cells.push(0);
-        }
-
+        cells.push(
+          Number.isFinite(value)
+            ? value
+            : 0
+        );
       }
 
-      /*
-         Cell values are stored in volts.
-
-         Pack voltage = sum of all 16 cells.
-      */
-
       const packVoltage =
-        cells.reduce((sum, value) => sum + value, 0);
+        cells.reduce(
+          (sum, value) => sum + value,
+          0
+        );
+
+      const averageCellVoltage =
+        packVoltage / 16;
+
+      const soc =
+        calculateSodiumIonSOC(
+          averageCellVoltage
+        );
 
       PACK_DATA[pack] = {
+
         cells: cells,
+
         voltage: packVoltage,
-        soc: null,
-        created_at: row.created_at
+
+        averageCellVoltage:
+          averageCellVoltage,
+
+        soc: soc,
+
+        created_at:
+          row.created_at
+
       };
-    }
 
-  });
-
-  await Promise.all(requests);
+    })
+  );
 
   updateSelectedPackDisplay();
+
   buildBarChart();
+
+  buildHeatmap();
 }
 
+
+function calculateSodiumIonSOC(voltage) {
+
+  const v = Number(voltage);
+
+  if (!Number.isFinite(v)) {
+    return 0;
+  }
+
+  /*
+     Sodium-ion estimated SOC.
+
+     Lower cutoff:
+     1.50 V
+
+     Upper reference:
+     3.50 V
+
+     This is an ESTIMATE based on
+     cell voltage, not RBMS SOC.
+  */
+
+  const curve = [
+    { v: 1.50, soc: 0 },
+    { v: 1.70, soc: 5 },
+    { v: 2.00, soc: 10 },
+    { v: 2.20, soc: 20 },
+    { v: 2.40, soc: 30 },
+    { v: 2.60, soc: 40 },
+    { v: 2.80, soc: 50 },
+    { v: 3.00, soc: 60 },
+    { v: 3.10, soc: 70 },
+    { v: 3.20, soc: 80 },
+    { v: 3.30, soc: 90 },
+    { v: 3.40, soc: 95 },
+    { v: 3.50, soc: 100 }
+  ];
+
+  if (v <= 1.50) {
+    return 0;
+  }
+
+  if (v >= 3.50) {
+    return 100;
+  }
+
+  for (let i = 0; i < curve.length - 1; i++) {
+
+    const low = curve[i];
+    const high = curve[i + 1];
+
+    if (
+      v >= low.v &&
+      v <= high.v
+    ) {
+
+      const ratio =
+        (v - low.v) /
+        (high.v - low.v);
+
+      const result =
+        low.soc +
+        ratio *
+        (high.soc - low.soc);
+
+      return Math.round(
+        Math.max(
+          0,
+          Math.min(100, result)
+        )
+      );
+    }
+  }
+
+  return 0;
+}
 
 /* ═══════════════════════════════════════════
    SAFE VALUE SETTER
@@ -446,7 +543,17 @@ function buildBarChart() {
      than inventing a value.
   */
 
-  const soc = PACKS.map(() => 0);
+  const soc = PACKS.map(pack => {
+
+  if (!PACK_DATA[pack]) {
+    return 0;
+  }
+
+  return Number(
+    PACK_DATA[pack].soc || 0
+  );
+
+});
 
 
   barChart = new Chart(ctx, {
@@ -628,74 +735,183 @@ function buildHeatmap() {
 
   grid.innerHTML = "";
 
-  const selected = getSelectedPack();
+  const selected =
+    getSelectedPack();
 
   /*
-     For All Packs, show Pack 1 by default.
+     ALL PACKS
   */
 
-  const packName =
-    selected === "All Packs"
-      ? "Pack 1"
-      : selected;
+  if (selected === "All Packs") {
 
-  const pack =
-    PACK_DATA[packName];
+    PACKS.forEach(packName => {
 
-  if (!pack) {
+      const pack =
+        PACK_DATA[packName];
 
-    grid.innerHTML =
-      "<div style='padding:20px'>No cell data available.</div>";
+      if (!pack) return;
+
+      const section =
+        document.createElement("div");
+
+      section.style.marginBottom =
+        "24px";
+
+      const heading =
+        document.createElement("div");
+
+      heading.style.fontWeight =
+        "600";
+
+      heading.style.marginBottom =
+        "10px";
+
+      heading.textContent =
+        `${packName} — ` +
+        `${pack.voltage.toFixed(2)} V | ` +
+        `SOC ${pack.soc}%`;
+
+      section.appendChild(heading);
+
+      const packGrid =
+        document.createElement("div");
+
+      packGrid.style.display =
+        "grid";
+
+      packGrid.style.gridTemplateColumns =
+        "repeat(4, 1fr)";
+
+      packGrid.style.gap =
+        "10px";
+
+      createPackCells(
+        packGrid,
+        packName,
+        pack
+      );
+
+      section.appendChild(packGrid);
+
+      grid.appendChild(section);
+
+    });
+
+    const title =
+      document.querySelector(
+        "#tab-heatmap .card-title"
+      );
+
+    if (title) {
+
+      title.textContent =
+        "Cell Voltage Heat Map — All Packs";
+
+    }
 
     return;
   }
 
-  const cells = pack.cells;
+  /*
+     SINGLE PACK
+  */
 
-  for (let i = 0; i < 16; i++) {
+  const pack =
+    PACK_DATA[selected];
 
-    const v = Number(cells[i] || 0);
+  if (!pack) {
+
+    grid.innerHTML =
+      "<div style='padding:20px'>" +
+      "No cell data available." +
+      "</div>";
+
+    return;
+  }
+
+  const packGrid =
+    document.createElement("div");
+
+  packGrid.style.display =
+    "grid";
+
+  packGrid.style.gridTemplateColumns =
+    "repeat(4, 1fr)";
+
+  packGrid.style.gap =
+    "10px";
+
+  createPackCells(
+    packGrid,
+    selected,
+    pack
+  );
+
+  grid.appendChild(packGrid);
+
+  const title =
+    document.querySelector(
+      "#tab-heatmap .card-title"
+    );
+
+  if (title) {
+
+    title.textContent =
+      `Cell Voltage Heat Map — ${selected}`;
+
+  }
+}
+
+function createPackCells(
+  grid,
+  packName,
+  pack
+) {
+
+  pack.cells.forEach((value, index) => {
+
+    const v =
+      Number(value || 0);
 
     let status;
 
-    /*
-       Sodium-ion thresholds:
-       Alert    <1.5V or >3.5V
-       Caution  1.5–1.7V or 3.4–3.5V
-       Balanced 1.7–3.4V
-    */
-
     if (v < 1.5 || v > 3.5) {
+
       status = "alert";
-    }
 
-    else if (v < 1.7 || v > 3.4) {
+    } else if (
+      v < 1.7 ||
+      v > 3.4
+    ) {
+
       status = "caution";
-    }
 
-    else {
+    } else {
+
       status = "balanced";
+
     }
 
-    const bg =
+    const background =
       status === "alert"
         ? "#D75B5B"
         : status === "caution"
         ? "#E0A25B"
         : "#A7B89C";
 
-
-    const el =
+    const cell =
       document.createElement("div");
 
-    el.className = "hm-zone";
+    cell.className =
+      "hm-zone";
 
-    el.style.background = bg;
+    cell.style.background =
+      background;
 
-    el.innerHTML = `
+    cell.innerHTML = `
 
       <div class="z-name">
-        Cell ${i + 1}
+        Cell ${index + 1}
       </div>
 
       <div class="z-kwh">
@@ -705,7 +921,7 @@ function buildHeatmap() {
       <div class="z-tip">
 
         <strong>
-          ${packName} — Cell ${i + 1}
+          ${packName} — Cell ${index + 1}
         </strong>
 
         <br>
@@ -722,27 +938,21 @@ function buildHeatmap() {
           ${status}
         </strong>
 
+        <br>
+
+        Pack SOC:
+        <strong>
+          ${pack.soc}%
+        </strong>
+
       </div>
 
     `;
 
-    grid.appendChild(el);
-  }
+    grid.appendChild(cell);
 
-
-  const title =
-    document.querySelector(
-      "#tab-heatmap .card-title"
-    );
-
-  if (title) {
-
-    title.textContent =
-      `Cell Voltage Heat Map — ${packName}`;
-
-  }
+  });
 }
-
 
 /* ═══════════════════════════════════════════
    TRENDS
