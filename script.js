@@ -776,9 +776,7 @@ function buildBarChart() {
   }
 
   if (barChart) {
-
     barChart.destroy();
-
     barChart = null;
   }
 
@@ -980,14 +978,32 @@ function buildBarChart() {
                 },
 
                 color:
-                  "#6B6B6B"
+                  "#6B6B6B",
+
+                stepSize:
+                  10,
+
+                callback:
+                  function(value) {
+
+                    return value + " V";
+
+                  }
+
               },
 
               position:
                 "left",
 
+              min:
+                0,
+
+              max:
+                60,
+
               beginAtZero:
-                false
+                true
+
             },
 
             y1: {
@@ -1021,6 +1037,7 @@ function buildBarChart() {
 
               max:
                 100
+
             }
 
           }
@@ -1030,6 +1047,100 @@ function buildBarChart() {
       }
     );
 }
+
+
+/* ═══════════════════════════════════════════
+   CHART DEFAULTS
+═══════════════════════════════════════════ */
+
+const CHART_DEFAULTS = {
+
+  responsive:
+    true,
+
+  maintainAspectRatio:
+    true,
+
+  plugins: {
+
+    legend: {
+
+      labels: {
+
+        font: {
+
+          family:
+            "Inter",
+
+          size:
+            11
+        },
+
+        color:
+          "#6B6B6B",
+
+        boxWidth:
+          12
+      }
+    }
+
+  },
+
+  scales: {
+
+    x: {
+
+      grid: {
+
+        color:
+          "#E0E0E0"
+      },
+
+      ticks: {
+
+        font: {
+
+          family:
+            "Inter",
+
+          size:
+            11
+        },
+
+        color:
+          "#6B6B6B"
+      }
+
+    },
+
+    y: {
+
+      grid: {
+
+        color:
+          "#E0E0E0"
+      },
+
+      ticks: {
+
+        font: {
+
+          family:
+            "Inter",
+
+          size:
+            11
+        },
+
+        color:
+          "#6B6B6B"
+      }
+
+    }
+
+  }
+
+};
 
 
 /* ═══════════════════════════════════════════
