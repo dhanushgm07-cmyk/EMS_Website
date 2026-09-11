@@ -768,6 +768,11 @@ function buildLineChart() {
    BAR CHART — BATTERY PACK VOLTAGE & SOC
 ═══════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════
+   BAR CHART — VOLTAGE & SOC
+   SMOOTH 5-SECOND LIVE ANIMATION
+═══════════════════════════════════════════ */
+
 function buildBarChart() {
 
   const ctx =
@@ -775,303 +780,420 @@ function buildBarChart() {
 
   if (!ctx) return;
 
+
+  const selected = getSelectedPack();
+
+
+  /*
+     All Packs = show all available packs
+     Individual Pack = show only selected pack
+  */
+  const packsToShow =
+    selected === "All Packs"
+      ? PACKS.filter(pack => PACK_DATA[pack])
+      : PACK_DATA[selected]
+      ? [selected]
+      : [];
+
+
+  if (!packsToShow.length) return;
+
+
+  const labels = packsToShow;
+
+
+  const voltage = packsToShow.map(pack =>
+    Number(PACK_DATA[pack]?.voltage || 0)
+  );
+
+
+  const soc = packsToShow.map(pack =>
+    Number(PACK_DATA[pack]?.soc || 0)
+  );
+
+
+  const voltageColors = [
+    "#FF924C",
+    "#A7B89C",
+    "#E0A25B",
+    "#D75B5B",
+    "#E57A2A",
+    "#3FB950",
+    "#6B8E23",
+    "#8A6FDF"
+  ];
+
+
+  /*
+     ─────────────────────────────────────────
+     IMPORTANT
+
+     If chart already exists, DO NOT destroy it.
+
+     Update the existing datasets instead.
+
+     This allows Chart.js to smoothly animate
+     the bars from the old value to the new
+     value every 5 seconds.
+     ─────────────────────────────────────────
+  */
+
   if (barChart) {
-    barChart.destroy();
+
+    /*
+       If pack selection changed, the number of
+       bars may have changed.
+
+       In that case recreate the chart.
+    */
+    const oldLabels =
+      barChart.data.labels || [];
+
+    const labelsChanged =
+      oldLabels.length !== labels.length ||
+      oldLabels.some(
+        (label, index) =>
+          label !== labels[index]
+      );
+
+
+    if (labelsChanged) {
+
+      barChart.destroy();
+      barChart = null;
+
+    }
+
   }
 
-  /*
-     Get voltage for all 8 packs
-  */
-  const voltage = PACKS.map(pack => {
-
-    const data = PACK_DATA[pack];
-
-    if (!data) return 0;
-
-    return Number(data.voltage || 0);
-  });
-
 
   /*
-     SOC is calculated from pack voltage
+     ─────────────────────────────────────────
+     CREATE CHART
+     ─────────────────────────────────────────
   */
-  const soc = PACKS.map(pack => {
 
-    const data = PACK_DATA[pack];
+  if (!barChart) {
 
-    if (!data) return 0;
+    barChart = new Chart(ctx, {
 
-    return Number(data.soc || 0);
-  });
+      type: "bar",
+
+      data: {
+
+        labels: labels,
+
+        datasets: [
+
+          {
+            label: "Voltage (V)",
+
+            data: voltage,
+
+            backgroundColor:
+              packsToShow.map(pack =>
+                voltageColors[
+                  PACKS.indexOf(pack)
+                ]
+              ),
+
+            borderRadius: 6,
+
+            yAxisID: "y"
+          },
 
 
-  barChart = new Chart(ctx, {
+          {
+            label: "SOC (%)",
 
-    type: "bar",
+            data: soc,
 
-    data: {
+            backgroundColor:
+              "rgba(167,184,156,0.5)",
 
-      labels: PACKS,
+            borderRadius: 6,
 
-      datasets: [
+            yAxisID: "y1"
+          }
 
-        {
-          label: "Voltage (V)",
+        ]
 
-          data: voltage,
+      },
 
-          backgroundColor: [
-            "#FF924C",
-            "#A7B89C",
-            "#E0A25B",
-            "#D75B5B",
-            "#E57A2A",
-            "#3FB950",
-            "#6B8E23",
-            "#8A6FDF"
-          ],
 
-          borderRadius: 6,
+      options: {
 
-          yAxisID: "y"
+        ...CHART_DEFAULTS,
+
+
+        /*
+           Slightly larger chart
+        */
+        aspectRatio: 1.8,
+
+
+        /*
+           ─────────────────────────────
+           SMOOTH BAR MOVEMENT
+           ─────────────────────────────
+        */
+
+        animation: {
+
+          duration: 1200,
+
+          easing: "easeInOutQuart"
+
         },
 
 
-        {
-          label: "SOC (%)",
+        /*
+           Animate dataset changes
+        */
 
-          data: soc,
+        animations: {
 
-          backgroundColor:
-            "rgba(167,184,156,0.5)",
+          y: {
 
-          borderRadius: 6,
+            duration: 1200,
 
-          yAxisID: "y1"
-        }
+            easing: "easeInOutQuart"
 
-      ]
+          }
 
-    },
-
-
-    options: {
-
-      ...CHART_DEFAULTS,
-
-      /*
-         Slightly larger than the current chart
-      */
-      aspectRatio: 1.8,
+        },
 
 
-      scales: {
+        plugins: {
 
-        /* ───────────────
-           VOLTAGE AXIS
-           ─────────────── */
+          ...CHART_DEFAULTS.plugins,
 
-        y: {
+          title: {
 
-          position: "left",
+            display: true,
+
+            text:
+              selected === "All Packs"
+                ? "Battery Voltage & Estimated SOC — All Packs"
+                : `Battery Voltage & Estimated SOC — ${selected}`,
+
+            font: {
+
+              family: "Inter",
+
+              size: 13,
+
+              weight: "600"
+
+            },
+
+            color: "#4A4A4A"
+
+          }
+
+        },
+
+
+        scales: {
+
+          x: {
+
+            grid: {
+
+              color: "#E0E0E0"
+
+            },
+
+            ticks: {
+
+              font: {
+
+                family: "Inter",
+
+                size: 11
+
+              },
+
+              color: "#6B6B6B"
+
+            }
+
+          },
+
 
           /*
-             IMPORTANT:
-             Prevent Chart.js from zooming into
-             49.83–49.86 V.
+             ─────────────────────────
+             VOLTAGE AXIS
+             ─────────────────────────
+
+             Fixed 0–60 V so the axis
+             does not zoom into values
+             like 49.83–49.86 V.
           */
 
-          min: 0,
+          y: {
 
-          max: 60,
+            position: "left",
 
-          beginAtZero: true,
+            min: 0,
 
-          grid: {
-            color: "#E0E0E0"
-          },
+            max: 60,
 
-          ticks: {
+            beginAtZero: true,
 
-            stepSize: 10,
+            grid: {
 
-            font: {
-              family: "Inter",
-              size: 11
+              color: "#E0E0E0"
+
             },
 
-            color: "#6B6B6B",
+            ticks: {
 
-            callback: function(value) {
-              return value + " V";
+              stepSize: 10,
+
+              font: {
+
+                family: "Inter",
+
+                size: 11
+
+              },
+
+              color: "#6B6B6B",
+
+              callback: function(value) {
+
+                return value + " V";
+
+              }
+
             }
 
-          }
-
-        },
-
-
-        /* ───────────────
-           SOC AXIS
-           ─────────────── */
-
-        y1: {
-
-          position: "right",
-
-          min: 0,
-
-          max: 100,
-
-          beginAtZero: true,
-
-          grid: {
-            display: false
           },
 
-          ticks: {
 
-            stepSize: 20,
+          /*
+             ─────────────────────────
+             SOC AXIS
+             ─────────────────────────
+          */
 
-            font: {
-              family: "Inter",
-              size: 11
+          y1: {
+
+            position: "right",
+
+            min: 0,
+
+            max: 100,
+
+            beginAtZero: true,
+
+            grid: {
+
+              display: false
+
             },
 
-            color: "#6B6B6B",
+            ticks: {
 
-            callback: function(value) {
-              return value + " %";
+              stepSize: 20,
+
+              font: {
+
+                family: "Inter",
+
+                size: 11
+
+              },
+
+              color: "#6B6B6B",
+
+              callback: function(value) {
+
+                return value + " %";
+
+              }
+
             }
 
-          }
-
-        },
-
-
-        /* ───────────────
-           X AXIS
-           ─────────────── */
-
-        x: {
-
-          grid: {
-            color: "#E0E0E0"
-          },
-
-          ticks: {
-
-            font: {
-              family: "Inter",
-              size: 11
-            },
-
-            color: "#6B6B6B"
           }
 
         }
 
       }
 
-    }
-
-  });
-
-}
+    });
 
 
-/* ═══════════════════════════════════════════
-   CHART DEFAULTS
-═══════════════════════════════════════════ */
-
-const CHART_DEFAULTS = {
-
-  responsive:
-    true,
-
-  maintainAspectRatio:
-    true,
-
-  plugins: {
-
-    legend: {
-
-      labels: {
-
-        font: {
-
-          family:
-            "Inter",
-
-          size:
-            11
-        },
-
-        color:
-          "#6B6B6B",
-
-        boxWidth:
-          12
-      }
-    }
-
-  },
-
-  scales: {
-
-    x: {
-
-      grid: {
-
-        color:
-          "#E0E0E0"
-      },
-
-      ticks: {
-
-        font: {
-
-          family:
-            "Inter",
-
-          size:
-            11
-        },
-
-        color:
-          "#6B6B6B"
-      }
-
-    },
-
-    y: {
-
-      grid: {
-
-        color:
-          "#E0E0E0"
-      },
-
-      ticks: {
-
-        font: {
-
-          family:
-            "Inter",
-
-          size:
-            11
-        },
-
-        color:
-          "#6B6B6B"
-      }
-
-    }
+    return;
 
   }
 
-};
+
+  /*
+     ─────────────────────────────────────────
+     UPDATE EXISTING CHART
+     ─────────────────────────────────────────
+
+     THIS is what produces the moving effect.
+  */
+
+  barChart.data.labels = labels;
+
+
+  /*
+     Update Voltage
+  */
+
+  barChart.data.datasets[0].data =
+    voltage;
+
+
+  /*
+     Update SOC
+  */
+
+  barChart.data.datasets[1].data =
+    soc;
+
+
+  /*
+     Update voltage colours if pack selection
+     changed without changing chart length.
+  */
+
+  barChart.data.datasets[0].backgroundColor =
+    packsToShow.map(pack =>
+      voltageColors[
+        PACKS.indexOf(pack)
+      ]
+    );
+
+
+  /*
+     Update title
+  */
+
+  if (
+    barChart.options.plugins &&
+    barChart.options.plugins.title
+  ) {
+
+    barChart.options.plugins.title.text =
+      selected === "All Packs"
+        ? "Battery Voltage & Estimated SOC — All Packs"
+        : `Battery Voltage & Estimated SOC — ${selected}`;
+
+  }
+
+
+  /*
+     Animate from old values → new values
+  */
+
+  barChart.update();
+
+}
 
 
 /* ═══════════════════════════════════════════
