@@ -1629,9 +1629,17 @@ if (
 mins < 60
 ) {
 
-return (`${mins}m ago`);
+return (
+  `${mins}m ago`
+);
+
 }
-return `${Math.floor(mins / 60)}h ago`;
+
+return (
+${Math.floor(
+      mins / 60
+    )}h ago
+);
 }
 
 function buildAlerts() {
