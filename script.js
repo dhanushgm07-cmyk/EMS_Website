@@ -1632,7 +1632,6 @@ mins < 60
 return (`${mins}m ago`);
 }
 return `${Math.floor(mins / 60)}h ago`;
-);
 }
 
 function buildAlerts() {
