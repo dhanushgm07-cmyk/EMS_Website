@@ -1,1519 +1,1534 @@
 /* ═══════════════════════════════════════════
    EMS — script.js
+   8 PACK REAL SUPABASE VERSION
 ═══════════════════════════════════════════ */
 
 const supabaseUrl = "https://xfozfhopqxokmdcgyhqy.supabase.co";
 
-const supabaseKey = "sb_publishable_yx3wAYXNdfYo8HwrmDUryQ_idY6gR7z";
+const supabaseKey =
+  "sb_publishable_yx3wAYXNdfYo8HwrmDUryQ_idY6gR7z";
 
 const db = supabase.createClient(
-    supabaseUrl,
-    supabaseKey
+  supabaseUrl,
+  supabaseKey
 );
 
 
-// ═══════════════════════════════════════════
-// BMS DATA
-// ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════
+   PACK CONFIGURATION
+═══════════════════════════════════════════ */
 
-async function getBMSData()
-{
-    const { data, error } = await db
-        .from("BMS_Data")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
+const PACKS = [
+  "Pack 1",
+  "Pack 2",
+  "Pack 3",
+  "Pack 4",
+  "Pack 5",
+  "Pack 6",
+  "Pack 7",
+  "Pack 8"
+];
 
-    if(error)
-    {
-        console.log(error);
-        return;
-    }
-
-    if(!data || data.length === 0)
-        return;
-
-    const latest = data[0];
-
-    // Update values directly — no animation/blinking
-    document.getElementById("kpi-soc").textContent =
-        Number(latest.Soc || 0).toFixed(1);
-
-    document.getElementById("kpi-voltage").textContent =
-        Number(latest.Voltage || 0).toFixed(1);
-
-    document.getElementById("kpi-current").textContent =
-        Number(latest.Current || 0).toFixed(1);
-
-    document.getElementById("kpi-temp").textContent =
-        Number(latest.Temperature || 0).toFixed(1);
-
-    document.getElementById("kpi-pv").textContent =
-        Number(latest.Pv_power || 0).toFixed(1);
-
-    document.getElementById("kpi-power").textContent =
-        Number(latest.Power || 0).toFixed(1);
-
-
-    RAW_DATA = data.map(row => ({
-        hour: new Date(row.created_at).getHours() + ":00",
-
-        pack: "Pack 1",
-
-        soc: Number(row.Soc) || 0,
-        voltage: Number(row.Voltage) || 0,
-        current: Number(row.Current) || 0,
-        power: Number(row.Power) || 0,
-        temp: Number(row.Temperature) || 0,
-        pv: Number(row.Pv_power) || 0
-    }));
-
-
-    updateKPIs(false);
-}
-
-
-// Initial BMS load
-getBMSData();
-
-// Update BMS values every 5 seconds
-setInterval(getBMSData, 5000);
-
-
-// ═══════════════════════════════════════════
-// AUTH
-// ═══════════════════════════════════════════
-
-const USERS = {
-    admin: 'admin123',
-    sodion: 'sodion123',
-    operator: 'op2024'
+const PACK_TABLES = {
+  "Pack 1": "PACK 1 CELLS",
+  "Pack 2": "PACK 2 CELLS",
+  "Pack 3": "PACK 3 CELLS",
+  "Pack 4": "PACK 4 CELLS",
+  "Pack 5": "PACK 5 CELLS",
+  "Pack 6": "PACK 6 CELLS",
+  "Pack 7": "PACK 7 CELLS",
+  "Pack 8": "PACK 8 CELLS"
 };
 
 
-function login()
-{
-    const u =
-        document.getElementById('username').value.trim();
-
-    const p =
-        document.getElementById('password').value;
-
-    const err =
-        document.getElementById('login-error');
-
-
-    if(USERS[u] && USERS[u] === p)
-    {
-        err.classList.add('hidden');
-
-        document.getElementById('user-chip').textContent =
-            u[0].toUpperCase();
-
-        document
-            .getElementById('login-page')
-            .classList.remove('active');
-
-        document
-            .getElementById('dashboard-page')
-            .classList.add('active');
-
-        initDashboard();
-    }
-    else
-    {
-        err.classList.remove('hidden');
-    }
-}
-
-
-function logout()
-{
-    document
-        .getElementById('dashboard-page')
-        .classList.remove('active');
-
-    document
-        .getElementById('login-page')
-        .classList.add('active');
-
-    document.getElementById('username').value = '';
-
-    document.getElementById('password').value = '';
-
-    destroyCharts();
-}
-
-
-document.addEventListener('keydown', e =>
-{
-    if(
-        e.key === 'Enter' &&
-        document
-            .getElementById('login-page')
-            .classList.contains('active')
-    )
-    {
-        login();
-    }
-});
-
-
-// ═══════════════════════════════════════════
-// CLOCK
-// ═══════════════════════════════════════════
-
-setInterval(() =>
-{
-    const n = new Date();
-
-    const pad = v =>
-        String(v).padStart(2,'0');
-
-    const clock =
-        document.getElementById('clock');
-
-    if(clock)
-    {
-        clock.textContent =
-            `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
-    }
-
-}, 1000);
-
-
-// ═══════════════════════════════════════════
-// TABS
-// ═══════════════════════════════════════════
-
-function switchTab(name, btn)
-{
-    document
-        .querySelectorAll('.tab-panel')
-        .forEach(p => p.classList.add('hidden'));
-
-    document
-        .querySelectorAll('.tab')
-        .forEach(b => b.classList.remove('active'));
-
-
-    const panel =
-        document.getElementById('tab-' + name);
-
-    if(panel)
-        panel.classList.remove('hidden');
-
-
-    if(btn)
-        btn.classList.add('active');
-
-
-    if(name === 'trends')
-        buildTrendChart(currentRange);
-
-    if(name === 'heatmap')
-        buildHeatmap();
-}
-
-
-// ═══════════════════════════════════════════
-// FILTERS
-// ═══════════════════════════════════════════
-
-let selectedLocation = '';
-
-
-function onFilterChange()
-{
-    updateKPIs(true);
-
-    buildLineChart();
-
-    buildBarChart();
-
-    // Heatmap updates only when pack changes
-    buildHeatmap();
-}
-
-
-function clearLocation()
-{
-    selectedLocation = '';
-
-    document
-        .getElementById('loc-pill')
-        .classList.add('hidden');
-
-    onFilterChange();
-}
-
-
-function setLocation(loc)
-{
-    selectedLocation = loc;
-
-    document.getElementById('loc-label').textContent =
-        loc;
-
-    document
-        .getElementById('loc-pill')
-        .classList.remove('hidden');
-
-    showToast(`Filter Applied: ${loc}`);
-
-    onFilterChange();
-}
-
-
-// ═══════════════════════════════════════════
-// DATA
-// ═══════════════════════════════════════════
-
-let RAW_DATA = [];
-
-
-function getFiltered()
-{
-    const pack =
-        document.getElementById('sel-pack')?.value
-        || 'Pack 1';
-
-    return RAW_DATA.filter(
-        d => d.pack === pack
-    );
-}
-
-
-// ═══════════════════════════════════════════
-// KPI
-// ═══════════════════════════════════════════
-
-function calcKPIs(data)
-{
-    if(!data || data.length === 0)
-    {
-        return {
-            soc: 0,
-            voltage: 0,
-            current: 0,
-            temp: 0,
-            power: 0,
-            pv: 0
-        };
-    }
-
-
-    const avgSOC =
-        data.reduce((s,d) => s + d.soc, 0)
-        / data.length;
-
-    const avgVoltage =
-        data.reduce((s,d) => s + d.voltage, 0)
-        / data.length;
-
-    const avgCurrent =
-        data.reduce((s,d) => s + d.current, 0)
-        / data.length;
-
-    const avgTemp =
-        data.reduce((s,d) => s + d.temp, 0)
-        / data.length;
-
-    const avgPower =
-        data.reduce((s,d) => s + d.power, 0)
-        / data.length;
-
-    const avgPV =
-        data.reduce((s,d) => s + d.pv, 0)
-        / data.length;
-
-
-    return {
-        soc: avgSOC,
-        voltage: avgVoltage,
-        current: avgCurrent,
-        temp: avgTemp,
-        power: avgPower,
-        pv: avgPV
-    };
-}
-
-
-// ═══════════════════════════════════════════
-// KPI CARDS
-// ═══════════════════════════════════════════
-
-function updateKPIs(showAnimation = false)
-{
-    const kpis =
-        calcKPIs(getFiltered());
-
-
-    const setValue = (id, value) =>
-    {
-        const el =
-            document.getElementById(id);
-
-        if(el)
-            el.textContent =
-                Number(value || 0).toFixed(1);
-    };
-
-
-    setValue('kpi-soc', kpis.soc);
-
-    setValue('kpi-voltage', kpis.voltage);
-
-    setValue('kpi-current', kpis.current);
-
-    setValue('kpi-temp', kpis.temp);
-
-    setValue('kpi-power', Math.abs(kpis.power));
-
-    setValue('kpi-pv', kpis.pv);
-
-
-    const currTrend =
-        document.getElementById('kpi-current-trend');
-
-    const powTrend =
-        document.getElementById('kpi-power-trend');
-
-
-    if(kpis.current > 0)
-    {
-        if(currTrend)
-        {
-            currTrend.textContent = 'Charging';
-            currTrend.className = 'kpi-trend up';
-        }
-
-        if(powTrend)
-        {
-            powTrend.textContent = 'Charging';
-            powTrend.className = 'kpi-trend up';
-        }
-    }
-    else
-    {
-        if(currTrend)
-        {
-            currTrend.textContent = 'Discharging';
-            currTrend.className = 'kpi-trend down';
-        }
-
-        if(powTrend)
-        {
-            powTrend.textContent = 'Discharging';
-            powTrend.className = 'kpi-trend down';
-        }
-    }
-}
-
-
-// ═══════════════════════════════════════════
-// CHARTS
-// ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════
+   GLOBAL DATA
+═══════════════════════════════════════════ */
+
+let BMS_DATA = [];
+let PACK_DATA = {};
 
 let lineChart = null;
 let barChart = null;
 let trendChart = null;
 
-
-function destroyCharts()
-{
-    [lineChart, barChart, trendChart]
-        .forEach(c =>
-        {
-            if(c)
-                c.destroy();
-        });
+let currentRange = "daily";
+let selectedLocation = "";
 
 
-    lineChart = null;
-    barChart = null;
-    trendChart = null;
+/* ═══════════════════════════════════════════
+   GET OVERALL BMS DATA
+═══════════════════════════════════════════ */
+
+async function getBMSData() {
+
+  const { data, error } = await db
+    .from("BMS_Data")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error("BMS DATA ERROR:", error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    console.warn("No BMS data available");
+    return;
+  }
+
+  BMS_DATA = data;
+
+  /*
+     IMPORTANT:
+     These KPI values are ALWAYS SYSTEM/OVERALL values.
+     Pack selector does NOT change them.
+  */
+
+  const latest = data[0];
+
+  setValue("kpi-soc", latest.Soc);
+  setValue("kpi-voltage", latest.Voltage);
+  setValue("kpi-current", latest.Current);
+  setValue("kpi-temp", latest.Temperature);
+  setValue("kpi-pv", latest.Pv_power);
+  setValue("kpi-power", latest.Power);
+
+  updateKPIStatus(latest.Current);
+
+  buildLineChart();
+  buildBarChart();
 }
 
 
-const CHART_DEFAULTS =
-{
-    responsive: true,
+/* ═══════════════════════════════════════════
+   GET CELL DATA FOR ALL 8 PACKS
+═══════════════════════════════════════════ */
 
-    maintainAspectRatio: true,
+async function getAllPackData() {
 
-    plugins:
-    {
-        legend:
-        {
-            labels:
-            {
-                font:
-                {
-                    family: 'Inter',
-                    size: 11
-                },
+  const requests = PACKS.map(async pack => {
 
-                color: '#6B6B6B',
+    const table = PACK_TABLES[pack];
 
-                boxWidth: 12
-            }
+    const { data, error } = await db
+      .from(table)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error(pack + " ERROR:", error);
+      return;
+    }
+
+    if (data && data.length > 0) {
+
+      const row = data[0];
+
+      const cells = [];
+
+      for (let i = 1; i <= 16; i++) {
+
+        const value = parseFloat(row[`Cell_${i}`]);
+
+        if (Number.isFinite(value)) {
+          cells.push(value);
+        } else {
+          cells.push(0);
         }
-    },
 
-    scales:
-    {
-        x:
+      }
+
+      /*
+         Cell values are stored in volts.
+
+         Pack voltage = sum of all 16 cells.
+      */
+
+      const packVoltage =
+        cells.reduce((sum, value) => sum + value, 0);
+
+      PACK_DATA[pack] = {
+        cells: cells,
+        voltage: packVoltage,
+        soc: null,
+        created_at: row.created_at
+      };
+    }
+
+  });
+
+  await Promise.all(requests);
+
+  updateSelectedPackDisplay();
+  buildBarChart();
+}
+
+
+/* ═══════════════════════════════════════════
+   SAFE VALUE SETTER
+═══════════════════════════════════════════ */
+
+function setValue(id, value) {
+
+  const el = document.getElementById(id);
+
+  if (!el) return;
+
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    el.textContent = "--";
+    return;
+  }
+
+  const number = Number(value);
+
+  if (Number.isFinite(number)) {
+    el.textContent = number.toFixed(1);
+  } else {
+    el.textContent = value;
+  }
+}
+
+
+/* ═══════════════════════════════════════════
+   KPI STATUS
+═══════════════════════════════════════════ */
+
+function updateKPIStatus(current) {
+
+  const currTrend =
+    document.getElementById("kpi-current-trend");
+
+  const powTrend =
+    document.getElementById("kpi-power-trend");
+
+  if (!currTrend || !powTrend) return;
+
+  if (Number(current) > 0) {
+
+    currTrend.textContent = "Charging";
+    currTrend.className = "kpi-trend up";
+
+    powTrend.textContent = "Charging";
+    powTrend.className = "kpi-trend up";
+
+  } else if (Number(current) < 0) {
+
+    currTrend.textContent = "Discharging";
+    currTrend.className = "kpi-trend down";
+
+    powTrend.textContent = "Discharging";
+    powTrend.className = "kpi-trend down";
+
+  } else {
+
+    currTrend.textContent = "Idle";
+    currTrend.className = "kpi-trend";
+
+    powTrend.textContent = "Idle";
+    powTrend.className = "kpi-trend";
+  }
+}
+
+
+/* ═══════════════════════════════════════════
+   SELECTED PACK
+═══════════════════════════════════════════ */
+
+function getSelectedPack() {
+
+  const selector =
+    document.getElementById("sel-pack");
+
+  if (!selector) {
+    return "All Packs";
+  }
+
+  return selector.value || "All Packs";
+}
+
+
+/* ═══════════════════════════════════════════
+   PACK DISPLAY
+═══════════════════════════════════════════ */
+
+function updateSelectedPackDisplay() {
+
+  const selected = getSelectedPack();
+
+  /*
+     We intentionally DO NOT change the six KPI cards here.
+     They remain overall/system values.
+  */
+
+  if (selected === "All Packs") {
+    return;
+  }
+
+  const pack = PACK_DATA[selected];
+
+  if (!pack) {
+    console.warn("No data for", selected);
+    return;
+  }
+
+  console.log(
+    selected,
+    "Voltage:",
+    pack.voltage.toFixed(2),
+    "V"
+  );
+}
+
+
+/* ═══════════════════════════════════════════
+   FILTER CHANGE
+═══════════════════════════════════════════ */
+
+function onFilterChange() {
+
+  /*
+     KPI cards remain OVERALL.
+     Only pack-specific visualizations change.
+  */
+
+  updateSelectedPackDisplay();
+
+  buildLineChart();
+  buildBarChart();
+
+  if (
+    document
+      .getElementById("tab-heatmap")
+      ?.classList.contains("active")
+  ) {
+    buildHeatmap();
+  }
+}
+
+
+/* ═══════════════════════════════════════════
+   LINE CHART
+═══════════════════════════════════════════ */
+
+function buildLineChart() {
+
+  const ctx =
+    document.getElementById("lineChart");
+
+  if (!ctx) return;
+
+  if (lineChart) {
+    lineChart.destroy();
+  }
+
+  if (!BMS_DATA.length) return;
+
+  const selected = getSelectedPack();
+
+  let data = [...BMS_DATA];
+
+  /*
+     BMS_Data is overall/system data.
+     It is therefore NOT filtered by pack.
+  */
+
+  const labels = data
+    .slice()
+    .reverse()
+    .map(row =>
+      new Date(row.created_at)
+        .toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        })
+    );
+
+  const powerValues = data
+    .slice()
+    .reverse()
+    .map(row =>
+      Number(row.Power || 0)
+    );
+
+  const pvValues = data
+    .slice()
+    .reverse()
+    .map(row =>
+      Number(row.Pv_power || 0)
+    );
+
+  lineChart = new Chart(ctx, {
+
+    type: "line",
+
+    data: {
+
+      labels: labels,
+
+      datasets: [
+
         {
-            grid:
-            {
-                color: '#E0E0E0'
-            },
-
-            ticks:
-            {
-                font:
-                {
-                    family: 'Inter',
-                    size: 11
-                },
-
-                color: '#6B6B6B'
-            }
+          label: "Charge/Discharge Power (kW)",
+          data: powerValues,
+          borderColor: "#FF924C",
+          backgroundColor:
+            "rgba(255,146,76,0.08)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 2
         },
 
-        y:
         {
-            grid:
-            {
-                color: '#E0E0E0'
-            },
-
-            ticks:
-            {
-                font:
-                {
-                    family: 'Inter',
-                    size: 11
-                },
-
-                color: '#6B6B6B'
-            }
+          label: "PV Input (kW)",
+          data: pvValues,
+          borderColor: "#3FB950",
+          backgroundColor:
+            "rgba(63,185,80,0.08)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 2
         }
+
+      ]
+
+    },
+
+    options: {
+      ...CHART_DEFAULTS,
+      aspectRatio: 2
     }
+
+  });
+}
+
+
+/* ═══════════════════════════════════════════
+   BAR CHART — 8 PACKS
+═══════════════════════════════════════════ */
+
+function buildBarChart() {
+
+  const ctx =
+    document.getElementById("barChart");
+
+  if (!ctx) return;
+
+  if (barChart) {
+    barChart.destroy();
+  }
+
+  const voltage = PACKS.map(pack => {
+
+    const data = PACK_DATA[pack];
+
+    if (!data) return 0;
+
+    return Number(data.voltage || 0);
+
+  });
+
+
+  /*
+     SOC cannot currently be obtained per pack
+     because PACK X CELLS tables contain only
+     Cell_1 ... Cell_16.
+
+     Therefore SOC is shown as 0 here rather
+     than inventing a value.
+  */
+
+  const soc = PACKS.map(() => 0);
+
+
+  barChart = new Chart(ctx, {
+
+    type: "bar",
+
+    data: {
+
+      labels: PACKS,
+
+      datasets: [
+
+        {
+          label: "Voltage (V)",
+          data: voltage,
+          backgroundColor: [
+            "#FF924C",
+            "#A7B89C",
+            "#E0A25B",
+            "#D75B5B",
+            "#E57A2A",
+            "#3FB950",
+            "#6B8E23",
+            "#8A6FDF"
+          ],
+          borderRadius: 6,
+          yAxisID: "y"
+        },
+
+        {
+          label: "SOC (%)",
+          data: soc,
+          backgroundColor:
+            "rgba(167,184,156,0.5)",
+          borderRadius: 6,
+          yAxisID: "y1"
+        }
+
+      ]
+
+    },
+
+    options: {
+
+      ...CHART_DEFAULTS,
+
+      aspectRatio: 2,
+
+      scales: {
+
+        x: {
+          grid: {
+            color: "#E0E0E0"
+          },
+          ticks: {
+            font: {
+              family: "Inter",
+              size: 11
+            },
+            color: "#6B6B6B"
+          }
+        },
+
+        y: {
+          grid: {
+            color: "#E0E0E0"
+          },
+          ticks: {
+            font: {
+              family: "Inter",
+              size: 11
+            },
+            color: "#6B6B6B"
+          },
+          position: "left"
+        },
+
+        y1: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            font: {
+              family: "Inter",
+              size: 11
+            },
+            color: "#6B6B6B"
+          },
+          position: "right",
+          max: 100
+        }
+
+      }
+
+    }
+
+  });
+}
+
+
+/* ═══════════════════════════════════════════
+   CHART DEFAULTS
+═══════════════════════════════════════════ */
+
+const CHART_DEFAULTS = {
+
+  responsive: true,
+
+  maintainAspectRatio: true,
+
+  plugins: {
+
+    legend: {
+
+      labels: {
+
+        font: {
+          family: "Inter",
+          size: 11
+        },
+
+        color: "#6B6B6B",
+
+        boxWidth: 12
+
+      }
+
+    }
+
+  },
+
+  scales: {
+
+    x: {
+      grid: {
+        color: "#E0E0E0"
+      },
+
+      ticks: {
+        font: {
+          family: "Inter",
+          size: 11
+        },
+
+        color: "#6B6B6B"
+      }
+    },
+
+    y: {
+      grid: {
+        color: "#E0E0E0"
+      },
+
+      ticks: {
+        font: {
+          family: "Inter",
+          size: 11
+        },
+
+        color: "#6B6B6B"
+      }
+    }
+
+  }
+
 };
 
 
-// ═══════════════════════════════════════════
-// LINE CHART
-// ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════
+   HEATMAP
+═══════════════════════════════════════════ */
 
-function buildLineChart()
-{
-    const data = getFiltered();
+function buildHeatmap() {
 
-    const byHour = {};
+  const grid =
+    document.getElementById("hm-grid");
+
+  if (!grid) return;
+
+  grid.innerHTML = "";
+
+  const selected = getSelectedPack();
+
+  /*
+     For All Packs, show Pack 1 by default.
+  */
+
+  const packName =
+    selected === "All Packs"
+      ? "Pack 1"
+      : selected;
+
+  const pack =
+    PACK_DATA[packName];
+
+  if (!pack) {
+
+    grid.innerHTML =
+      "<div style='padding:20px'>No cell data available.</div>";
+
+    return;
+  }
+
+  const cells = pack.cells;
+
+  for (let i = 0; i < 16; i++) {
+
+    const v = Number(cells[i] || 0);
+
+    let status;
+
+    /*
+       Sodium-ion thresholds:
+       Alert    <1.5V or >3.5V
+       Caution  1.5–1.7V or 3.4–3.5V
+       Balanced 1.7–3.4V
+    */
+
+    if (v < 1.5 || v > 3.5) {
+      status = "alert";
+    }
+
+    else if (v < 1.7 || v > 3.4) {
+      status = "caution";
+    }
+
+    else {
+      status = "balanced";
+    }
+
+    const bg =
+      status === "alert"
+        ? "#D75B5B"
+        : status === "caution"
+        ? "#E0A25B"
+        : "#A7B89C";
 
 
-    data.forEach(d =>
-    {
-        if(!byHour[d.hour])
+    const el =
+      document.createElement("div");
+
+    el.className = "hm-zone";
+
+    el.style.background = bg;
+
+    el.innerHTML = `
+
+      <div class="z-name">
+        Cell ${i + 1}
+      </div>
+
+      <div class="z-kwh">
+        ${v.toFixed(3)}V
+      </div>
+
+      <div class="z-tip">
+
+        <strong>
+          ${packName} — Cell ${i + 1}
+        </strong>
+
+        <br>
+
+        Voltage:
+        <strong>
+          ${v.toFixed(3)}V
+        </strong>
+
+        <br>
+
+        Status:
+        <strong>
+          ${status}
+        </strong>
+
+      </div>
+
+    `;
+
+    grid.appendChild(el);
+  }
+
+
+  const title =
+    document.querySelector(
+      "#tab-heatmap .card-title"
+    );
+
+  if (title) {
+
+    title.textContent =
+      `Cell Voltage Heat Map — ${packName}`;
+
+  }
+}
+
+
+/* ═══════════════════════════════════════════
+   TRENDS
+═══════════════════════════════════════════ */
+
+function setRange(range, btn) {
+
+  currentRange = range;
+
+  document
+    .querySelectorAll(".rtab")
+    .forEach(b =>
+      b.classList.remove("active")
+    );
+
+  if (btn) {
+    btn.classList.add("active");
+  }
+
+  buildTrendChart(range);
+}
+
+
+function buildTrendChart(range) {
+
+  const ctx =
+    document.getElementById("trendChart");
+
+  if (!ctx) return;
+
+  if (trendChart) {
+    trendChart.destroy();
+  }
+
+  if (!BMS_DATA.length) return;
+
+  const data =
+    BMS_DATA
+      .slice()
+      .reverse();
+
+
+  const labels =
+    data.map(row =>
+      new Date(row.created_at)
+        .toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        })
+    );
+
+
+  const soc =
+    data.map(row =>
+      Number(row.Soc || 0)
+    );
+
+
+  const power =
+    data.map(row =>
+      Number(row.Power || 0)
+    );
+
+
+  trendChart = new Chart(ctx, {
+
+    type: "line",
+
+    data: {
+
+      labels: labels,
+
+      datasets: [
+
         {
-            byHour[d.hour] =
-            {
-                power: 0,
-                pv: 0,
-                count: 0
-            };
+          label: "Power (kW)",
+          data: power,
+          borderColor: "#FF924C",
+          backgroundColor:
+            "rgba(255,146,76,0.06)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.35,
+          yAxisID: "y"
+        },
+
+        {
+          label: "SOC (%)",
+          data: soc,
+          borderColor: "#A7B89C",
+          borderWidth: 2,
+          fill: false,
+          tension: 0.35,
+          yAxisID: "y1"
         }
 
+      ]
 
-        byHour[d.hour].power += d.power;
+    },
 
-        byHour[d.hour].pv += d.pv;
+    options: {
 
-        byHour[d.hour].count++;
-    });
+      ...CHART_DEFAULTS,
 
+      aspectRatio: 2.8,
 
-    const labels =
-        Object.keys(byHour).sort();
+      scales: {
 
+        x: {
+          grid: {
+            color: "#E0E0E0"
+          }
+        },
 
-    const powerVals =
-        labels.map(l =>
-            byHour[l].power /
-            byHour[l].count
-        );
+        y: {
+          position: "left"
+        },
 
-
-    const pvVals =
-        labels.map(l =>
-            byHour[l].pv /
-            byHour[l].count
-        );
-
-
-    const ctx =
-        document.getElementById('lineChart');
-
-    if(!ctx)
-        return;
-
-
-    if(lineChart)
-        lineChart.destroy();
-
-
-    lineChart =
-        new Chart(ctx,
-        {
-            type: 'line',
-
-            data:
-            {
-                labels,
-
-                datasets:
-                [
-                    {
-                        label:
-                            'Charge/Discharge Power (kW)',
-
-                        data: powerVals,
-
-                        borderColor: '#FF924C',
-
-                        backgroundColor:
-                            'rgba(255,146,76,0.08)',
-
-                        borderWidth: 2,
-
-                        fill: true,
-
-                        tension: 0.4,
-
-                        pointRadius: 3
-                    },
-
-                    {
-                        label: 'PV Input (kW)',
-
-                        data: pvVals,
-
-                        borderColor: '#3FB950',
-
-                        backgroundColor:
-                            'rgba(63,185,80,0.08)',
-
-                        borderWidth: 2,
-
-                        fill: true,
-
-                        tension: 0.4,
-
-                        pointRadius: 3
-                    }
-                ]
-            },
-
-            options:
-            {
-                ...CHART_DEFAULTS,
-
-                aspectRatio: 2,
-
-                animation:
-                {
-                    duration: 400
-                }
-            }
-        });
-}
-
-
-// ═══════════════════════════════════════════
-// BAR CHART
-// ═══════════════════════════════════════════
-
-function buildBarChart()
-{
-    const data = getFiltered();
-
-
-    const packs =
-    [
-        'Pack 1',
-        'Pack 2',
-        'Pack 3',
-        'Pack 4',
-        'Pack 5',
-        'Pack 6'
-    ];
-
-
-    const colors =
-    [
-        '#FF924C',
-        '#A7B89C',
-        '#E0A25B',
-        '#D75B5B',
-        '#E57A2A',
-        '#3FB950'
-    ];
-
-
-    const voltage =
-        packs.map(pack =>
-        {
-            const filtered =
-                data.filter(
-                    d => d.pack === pack
-                );
-
-            return filtered.length
-                ? filtered.reduce(
-                    (s,d) => s + d.voltage,
-                    0
-                  ) / filtered.length
-                : 0;
-        });
-
-
-    const soc =
-        packs.map(pack =>
-        {
-            const filtered =
-                data.filter(
-                    d => d.pack === pack
-                );
-
-            return filtered.length
-                ? filtered.reduce(
-                    (s,d) => s + d.soc,
-                    0
-                  ) / filtered.length
-                : 0;
-        });
-
-
-    const ctx =
-        document.getElementById('barChart');
-
-    if(!ctx)
-        return;
-
-
-    if(barChart)
-        barChart.destroy();
-
-
-    barChart =
-        new Chart(ctx,
-        {
-            type: 'bar',
-
-            data:
-            {
-                labels: packs,
-
-                datasets:
-                [
-                    {
-                        label: 'Voltage (V)',
-
-                        data: voltage,
-
-                        backgroundColor: colors,
-
-                        borderRadius: 6
-                    },
-
-                    {
-                        label: 'SOC (%)',
-
-                        data: soc,
-
-                        backgroundColor:
-                            'rgba(167,184,156,0.5)',
-
-                        borderRadius: 6
-                    }
-                ]
-            },
-
-            options:
-            {
-                ...CHART_DEFAULTS,
-
-                aspectRatio: 2,
-
-                animation:
-                {
-                    duration: 400
-                }
-            }
-        });
-}
-
-
-// ═══════════════════════════════════════════
-// TREND CHART
-// ═══════════════════════════════════════════
-
-let currentRange = 'daily';
-
-
-function setRange(range, btn)
-{
-    currentRange = range;
-
-    document
-        .querySelectorAll('.rtab')
-        .forEach(b =>
-            b.classList.remove('active')
-        );
-
-
-    if(btn)
-        btn.classList.add('active');
-
-
-    buildTrendChart(range);
-}
-
-
-function buildTrendChart(range)
-{
-    const ctx =
-        document.getElementById('trendChart');
-
-    if(!ctx)
-        return;
-
-
-    if(trendChart)
-        trendChart.destroy();
-
-
-    const data =
-        getFiltered();
-
-
-    const labels =
-        data.map(d => d.hour);
-
-
-    const soc =
-        data.map(d => d.soc);
-
-
-    const power =
-        data.map(d => d.power);
-
-
-    trendChart =
-        new Chart(ctx,
-        {
-            type: 'line',
-
-            data:
-            {
-                labels,
-
-                datasets:
-                [
-                    {
-                        label: 'Power (kW)',
-
-                        data: power,
-
-                        borderColor: '#FF924C',
-
-                        backgroundColor:
-                            'rgba(255,146,76,0.06)',
-
-                        borderWidth: 2,
-
-                        fill: true,
-
-                        tension: 0.35,
-
-                        pointRadius: 3
-                    },
-
-                    {
-                        label: 'SOC (%)',
-
-                        data: soc,
-
-                        borderColor: '#A7B89C',
-
-                        borderWidth: 2,
-
-                        fill: false,
-
-                        tension: 0.35,
-
-                        pointRadius: 3
-                    }
-                ]
-            },
-
-            options:
-            {
-                ...CHART_DEFAULTS,
-
-                aspectRatio: 2.8
-            }
-        });
-}
-
-
-// ═══════════════════════════════════════════
-// PACK TABLES
-// ═══════════════════════════════════════════
-
-const PACK_TABLES =
-{
-    'Pack 1': 'PACK 1 CELLS',
-    'Pack 2': 'PACK 2 CELLS',
-    'Pack 3': 'PACK 3 CELLS',
-    'Pack 4': 'PACK 4 CELLS',
-    'Pack 5': 'PACK 5 CELLS',
-    'Pack 6': 'PACK 6 CELLS'
-};
-
-
-// ═══════════════════════════════════════════
-// HEATMAP
-// ═══════════════════════════════════════════
-
-async function buildHeatmap()
-{
-    const grid =
-        document.getElementById('hm-grid');
-
-    if(!grid)
-        return;
-
-
-    const selectedPack =
-        document.getElementById('sel-pack')?.value
-        || 'Pack 1';
-
-
-    const tableName =
-        PACK_TABLES[selectedPack];
-
-
-    if(!tableName)
-        return;
-
-
-    const { data, error } =
-        await db
-            .from(tableName)
-            .select('*')
-            .order('created_at',
-                   { ascending: false })
-            .limit(1);
-
-
-    if(error)
-    {
-        console.log(
-            `${selectedPack} heatmap error:`,
-            error
-        );
-
-        return;
-    }
-
-
-    if(!data || data.length === 0)
-    {
-        grid.innerHTML =
-            `
-            <div style="padding:20px;">
-                No data available for ${selectedPack}.
-            </div>
-            `;
-
-        return;
-    }
-
-
-    const latest = data[0];
-
-
-    // Build only when pack changes
-    grid.innerHTML = '';
-
-
-    for(let i = 1; i <= 16; i++)
-    {
-        const value =
-            latest[`Cell_${i}`];
-
-
-        const voltage =
-            Number(value);
-
-
-        if(!Number.isFinite(voltage))
-            continue;
-
-
-        let status;
-        let bg;
-
-
-        if(voltage <= 1.6 || voltage >= 3.6)
-        {
-            status = 'alert';
-            bg = '#D75B5B';
-        }
-        else if(voltage <= 2.2 || voltage >= 3.5)
-        {
-            status = 'caution';
-            bg = '#E0A25B';
-        }
-        else
-        {
-            status = 'balanced';
-            bg = '#A7B89C';
+        y1: {
+          position: "right",
+          max: 100,
+          grid: {
+            display: false
+          }
         }
 
+      }
 
-        const el =
-            document.createElement('div');
-
-
-        el.className = 'hm-zone';
-
-        el.style.background = bg;
-
-
-        el.innerHTML =
-            `
-            <div class="z-name">
-                Cell ${i}
-            </div>
-
-            <div class="z-kwh">
-                ${voltage.toFixed(3)}V
-            </div>
-
-            <div class="z-tip">
-                <strong>
-                    ${selectedPack} — Cell ${i}
-                </strong>
-                <br>
-                Voltage:
-                <strong>
-                    ${voltage.toFixed(3)}V
-                </strong>
-                <br>
-                Status:
-                <strong>
-                    ${status}
-                </strong>
-            </div>
-            `;
-
-
-        grid.appendChild(el);
     }
 
-
-    const title =
-        document.querySelector(
-            '#tab-heatmap .card-title'
-        );
-
-
-    if(title)
-    {
-        title.textContent =
-            `Cell Voltage Heat Map — ${selectedPack}`;
-    }
+  });
 }
 
 
-// ═══════════════════════════════════════════
-// ALERTS
-// ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════
+   ALERTS
+═══════════════════════════════════════════ */
 
-const ALERTS =
-[
-    {
-        id:'a1',
-        sev:'critical',
-        title:'Cell Voltage Imbalance Detected',
-        equip:'Pack 3 — Cell 12',
-        time:15,
-        threshold:3.35,
-        current:3.58,
-        desc:
-            'Cell 12 voltage exceeds safe threshold. Immediate balancing required.'
-    },
+const ALERTS = [
 
-    {
-        id:'a2',
-        sev:'warning',
-        title:'High Temperature Warning',
-        equip:'Pack 2 — BMS Sensor',
-        time:45,
-        threshold:35,
-        current:39,
-        desc:
-            'Pack 2 temperature elevated. Check cooling system.'
-    },
+  {
+    id: "a1",
+    sev: "critical",
+    title: "Cell Voltage Imbalance Detected",
+    equip: "Pack 3 — Cell 12",
+    time: 15,
+    threshold: 3.35,
+    current: 3.58,
+    desc:
+      "Cell voltage exceeds the safe threshold. Immediate balancing required."
+  },
 
-    {
-        id:'a3',
-        sev:'critical',
-        title:'SOC Drop Below Safety Threshold',
-        equip:'Pack 5 — Main Battery',
-        time:120,
-        threshold:20,
-        current:18,
-        desc:
-            'Pack 5 SOC critically low. Charging recommended immediately.'
-    },
+  {
+    id: "a2",
+    sev: "warning",
+    title: "High Temperature Warning",
+    equip: "BMS Temperature Sensor",
+    time: 45,
+    threshold: 35,
+    current: 39,
+    desc:
+      "Battery temperature elevated. Check cooling system."
+  }
 
-    {
-        id:'a4',
-        sev:'warning',
-        title:'Inverter Communication Loss',
-        equip:'Inverter 1 — CAN Bus',
-        time:180,
-        threshold:0,
-        current:0,
-        desc:
-            'Inverter 1 lost CAN communication. Check wiring and power.'
-    },
-
-    {
-        id:'a5',
-        sev:'info',
-        title:'Scheduled Maintenance Due',
-        equip:'BMS — Pack 1',
-        time:240,
-        threshold:0,
-        current:0,
-        desc:
-            'Routine BMS calibration and cell balancing scheduled.'
-    }
 ];
 
 
-const REPORTS =
-[
-    {
-        id:'r1',
-        title:'Battery Health Summary',
-        summary:
-            'Overall system health at 94%, all packs within spec',
+const SEV_ICON = {
 
-        details:
-        [
-            'Pack 1-6 SOH above 92%',
-            'Cell voltage delta <50mV across all packs',
-            'Average cycle count: 1,245 cycles',
-            'No critical degradation detected'
-        ],
+  critical: "🔴",
+  warning: "⚠️",
+  info: "ℹ️"
 
-        recs:
-        [
-            'Continue current charge/discharge cycles',
-            'Monitor Pack 3 Cell 12 for voltage drift',
-            'Schedule balancing for Pack 2 next week'
-        ]
-    },
+};
 
-    {
-        id:'r2',
-        title:'Power Flow Analysis',
-        summary:
-            'Charge efficiency at 96.2%, PV utilization 89%',
 
-        details:
-        [
-            'PV array generating 42kW average',
-            'Charge efficiency: 96.2% (target: 95%)',
-            'Discharge efficiency: 94.8%',
-            'Peak power: 48kW at 14:30'
-        ],
+const SEV_CLASS = {
 
-        recs:
-        [
-            'Optimize MPPT settings for morning hours',
-            'Review inverter settings for peak shaving',
-            'Consider battery pre-cooling during charge'
-        ]
-    },
+  critical: "sev-critical",
+  warning: "sev-warning",
+  info: "sev-info"
 
-    {
-        id:'r3',
-        title:'Thermal Management Report',
-        summary:
-            'Temperature range 28-38°C, cooling system optimal',
+};
 
-        details:
-        [
-            'Avg pack temp: 32.4°C',
-            'Max delta between packs: 4.2°C',
-            'Cooling system runtime: 18hrs/day',
-            'No thermal runaway events'
-        ],
 
-        recs:
-        [
-            'Maintain current cooling schedule',
-            'Inspect Pack 2 thermal sensors',
-            'Clean cooling fans quarterly'
-        ]
-    }
+const SEV_LABEL = {
+
+  critical: "Critical",
+  warning: "Warning",
+  info: "Info"
+
+};
+
+
+function fmtTime(mins) {
+
+  if (mins < 60) {
+    return `${mins}m ago`;
+  }
+
+  return `${Math.floor(mins / 60)}h ago`;
+
+}
+
+
+function buildAlerts() {
+
+  const list =
+    document.getElementById("alerts-list");
+
+  if (!list) return;
+
+  const critCount =
+    ALERTS.filter(
+      a => a.sev === "critical"
+    ).length;
+
+  const badge =
+    document.getElementById("crit-badge");
+
+  if (badge) {
+    badge.textContent =
+      `${critCount} Critical`;
+  }
+
+
+  list.innerHTML =
+    ALERTS.map(a => `
+
+      <div class="acc-item">
+
+        <button
+          class="acc-trigger"
+          onclick="toggleAcc('${a.id}')"
+        >
+
+          <span class="acc-sev-icon">
+            ${SEV_ICON[a.sev]}
+          </span>
+
+          <div class="acc-meta">
+
+            <div class="acc-meta-row">
+
+              <span class="acc-title">
+                ${a.title}
+              </span>
+
+              <span
+                class="sev-badge ${SEV_CLASS[a.sev]}"
+              >
+                ${SEV_LABEL[a.sev]}
+              </span>
+
+            </div>
+
+            <div class="acc-sub">
+              ${a.equip}
+            </div>
+
+            <div class="acc-sub">
+              ${fmtTime(a.time)}
+            </div>
+
+          </div>
+
+          <span
+            class="acc-chevron"
+            id="chev-${a.id}"
+          >
+            ▾
+          </span>
+
+        </button>
+
+        <div
+          class="acc-body"
+          id="body-${a.id}"
+        >
+
+          <p>
+            ${a.desc}
+          </p>
+
+        </div>
+
+      </div>
+
+    `).join("");
+
+}
+
+
+/* ═══════════════════════════════════════════
+   REPORTS
+═══════════════════════════════════════════ */
+
+const REPORTS = [
+
+  {
+    id: "r1",
+    title: "Battery Health Summary",
+    summary:
+      "Overall system battery monitoring",
+    details: [
+      "Monitoring all 8 battery packs",
+      "Cell voltage data received from RBMS",
+      "Pack-level voltage calculated from cell data"
+    ],
+    recs: [
+      "Monitor cell voltage imbalance",
+      "Investigate abnormal cells",
+      "Maintain regular balancing"
+    ]
+  }
+
 ];
 
 
-const SEV_ICON =
-{
-    critical:'🔴',
-    warning:'⚠️',
-    info:'ℹ️'
-};
+function buildReports() {
 
+  const list =
+    document.getElementById("reports-list");
 
-const SEV_CLASS =
-{
-    critical:'sev-critical',
-    warning:'sev-warning',
-    info:'sev-info'
-};
+  if (!list) return;
 
+  list.innerHTML =
+    REPORTS.map(r => `
 
-const SEV_LABEL =
-{
-    critical:'Critical',
-    warning:'Warning',
-    info:'Info'
-};
+      <div class="acc-item">
 
+        <button
+          class="acc-trigger"
+          onclick="toggleAcc('${r.id}')"
+        >
 
-function fmtTime(mins)
-{
-    if(mins < 60)
-        return `${mins}m ago`;
+          <span class="acc-sev-icon">
+            📋
+          </span>
 
-    return `${Math.floor(mins / 60)}h ago`;
-}
+          <div class="acc-meta">
 
-
-function buildAlerts()
-{
-    const list =
-        document.getElementById('alerts-list');
-
-    if(!list)
-        return;
-
-
-    const critCount =
-        ALERTS.filter(
-            a => a.sev === 'critical'
-        ).length;
-
-
-    document.getElementById('crit-badge').textContent =
-        `${critCount} Critical`;
-
-
-    list.innerHTML =
-        ALERTS.map(a =>
-        `
-        <div class="acc-item">
-
-            <button
-                class="acc-trigger"
-                onclick="toggleAcc('${a.id}')"
-            >
-
-                <span class="acc-sev-icon">
-                    ${SEV_ICON[a.sev]}
-                </span>
-
-                <div class="acc-meta">
-
-                    <div class="acc-meta-row">
-
-                        <span class="acc-title">
-                            ${a.title}
-                        </span>
-
-                        <span class="sev-badge ${SEV_CLASS[a.sev]}">
-                            ${SEV_LABEL[a.sev]}
-                        </span>
-
-                    </div>
-
-                    <div class="acc-sub">
-                        ${a.equip}
-                    </div>
-
-                    <div class="acc-sub">
-                        ${fmtTime(a.time)}
-                    </div>
-
-                </div>
-
-                <span
-                    class="acc-chevron"
-                    id="chev-${a.id}"
-                >
-                    ▾
-                </span>
-
-            </button>
-
-
-            <div
-                class="acc-body"
-                id="body-${a.id}"
-            >
-
-                <p>
-                    ${a.desc}
-                </p>
-
-
-                ${
-                    a.threshold > 0
-                    ?
-                    `
-                    <div class="acc-metrics">
-
-                        <div class="acc-metric-row">
-                            <span>Threshold:</span>
-                            <span>${a.threshold}</span>
-                        </div>
-
-                        <div class="acc-metric-row">
-                            <span>Current Value:</span>
-                            <span style="color:#D75B5B">
-                                ${a.current}
-                            </span>
-                        </div>
-
-                    </div>
-                    `
-                    :
-                    ''
-                }
-
-
-                <div class="acc-recs">
-
-                    <div class="acc-recs-title">
-                        Recommended Actions:
-                    </div>
-
-                    <ul>
-
-                        <li>
-                            Inspect equipment for mechanical issues or faults
-                        </li>
-
-                        <li>
-                            Review recent operational changes
-                        </li>
-
-                        <li>
-                            Contact maintenance if issue persists beyond 2 hours
-                        </li>
-
-                    </ul>
-
-                </div>
-
+            <div class="acc-title">
+              ${r.title}
             </div>
 
-        </div>
-        `
-        ).join('');
-}
-
-
-function buildReports()
-{
-    const list =
-        document.getElementById('reports-list');
-
-    if(!list)
-        return;
-
-
-    list.innerHTML =
-        REPORTS.map(r =>
-        `
-        <div class="acc-item">
-
-            <button
-                class="acc-trigger"
-                onclick="toggleAcc('${r.id}')"
-            >
-
-                <span class="acc-sev-icon">
-                    📋
-                </span>
-
-                <div class="acc-meta">
-
-                    <div class="acc-title">
-                        ${r.title}
-                    </div>
-
-                    <div
-                        class="acc-sub"
-                        style="margin-top:3px"
-                    >
-                        ${r.summary}
-                    </div>
-
-                </div>
-
-                <span
-                    class="acc-chevron"
-                    id="chev-${r.id}"
-                >
-                    ▾
-                </span>
-
-            </button>
-
-
             <div
-                class="acc-body"
-                id="body-${r.id}"
+              class="acc-sub"
+              style="margin-top:3px"
             >
-
-                <div class="acc-recs">
-
-                    <div class="acc-recs-title">
-                        ✅ Key Findings
-                    </div>
-
-                    <ul>
-                        ${
-                            r.details
-                                .map(
-                                    d => `<li>${d}</li>`
-                                )
-                                .join('')
-                        }
-                    </ul>
-
-                </div>
-
-
-                <div
-                    class="acc-recs"
-                    style="margin-top:10px"
-                >
-
-                    <div class="acc-recs-title">
-                        💡 Recommendations
-                    </div>
-
-                    <ul>
-                        ${
-                            r.recs
-                                .map(
-                                    rec => `<li>${rec}</li>`
-                                )
-                                .join('')
-                        }
-                    </ul>
-
-                </div>
-
+              ${r.summary}
             </div>
 
+          </div>
+
+          <span
+            class="acc-chevron"
+            id="chev-${r.id}"
+          >
+            ▾
+          </span>
+
+        </button>
+
+
+        <div
+          class="acc-body"
+          id="body-${r.id}"
+        >
+
+          <div class="acc-recs">
+
+            <div class="acc-recs-title">
+              ✅ Key Findings
+            </div>
+
+            <ul>
+              ${
+                r.details
+                  .map(d => `<li>${d}</li>`)
+                  .join("")
+              }
+            </ul>
+
+          </div>
+
+
+          <div
+            class="acc-recs"
+            style="margin-top:10px"
+          >
+
+            <div class="acc-recs-title">
+              💡 Recommendations
+            </div>
+
+            <ul>
+              ${
+                r.recs
+                  .map(r => `<li>${r}</li>`)
+                  .join("")
+              }
+            </ul>
+
+          </div>
+
         </div>
-        `
-        ).join('');
+
+      </div>
+
+    `).join("");
+
 }
 
 
-function toggleAcc(id)
-{
-    const body =
-        document.getElementById('body-' + id);
+/* ═══════════════════════════════════════════
+   ACCORDION
+═══════════════════════════════════════════ */
 
-    const chev =
-        document.getElementById('chev-' + id);
+function toggleAcc(id) {
 
+  const body =
+    document.getElementById(
+      "body-" + id
+    );
 
-    if(!body)
-        return;
+  const chev =
+    document.getElementById(
+      "chev-" + id
+    );
 
+  if (!body) return;
 
-    const open =
-        body.classList.toggle('open');
+  const open =
+    body.classList.toggle("open");
 
+  if (chev) {
+    chev.classList.toggle(
+      "open",
+      open
+    );
+  }
 
-    if(chev)
-        chev.classList.toggle('open', open);
 }
 
 
-// ═══════════════════════════════════════════
-// TOAST
-// ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════
+   LOCATION
+═══════════════════════════════════════════ */
+
+function clearLocation() {
+
+  selectedLocation = "";
+
+  const pill =
+    document.getElementById("loc-pill");
+
+  if (pill) {
+    pill.classList.add("hidden");
+  }
+
+  onFilterChange();
+
+}
+
+
+function setLocation(loc) {
+
+  selectedLocation = loc;
+
+  const label =
+    document.getElementById("loc-label");
+
+  const pill =
+    document.getElementById("loc-pill");
+
+  if (label) {
+    label.textContent = loc;
+  }
+
+  if (pill) {
+    pill.classList.remove("hidden");
+  }
+
+  showToast(
+    `Filter Applied: ${loc}`
+  );
+
+  onFilterChange();
+
+}
+
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
 
 let toastTimer;
 
 
-function showToast(msg)
-{
-    const t =
-        document.getElementById('toast');
+function showToast(msg) {
 
-    if(!t)
-        return;
+  const t =
+    document.getElementById("toast");
 
+  if (!t) return;
 
-    t.textContent = msg;
+  t.textContent = msg;
 
-    t.classList.remove('hidden');
+  t.classList.remove("hidden");
 
+  clearTimeout(toastTimer);
 
-    clearTimeout(toastTimer);
+  toastTimer =
+    setTimeout(
+      () =>
+        t.classList.add("hidden"),
+      3000
+    );
 
-
-    toastTimer =
-        setTimeout(
-            () => t.classList.add('hidden'),
-            3000
-        );
 }
 
 
-// ═══════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════ */
 
-function initDashboard()
-{
-    getBMSData();
+function switchTab(name, btn) {
 
+  document
+    .querySelectorAll(".tab-panel")
+    .forEach(p =>
+      p.classList.add("hidden")
+    );
+
+  document
+    .querySelectorAll(".tab")
+    .forEach(b =>
+      b.classList.remove("active")
+    );
+
+  const panel =
+    document.getElementById(
+      "tab-" + name
+    );
+
+  if (panel) {
+    panel.classList.remove("hidden");
+  }
+
+  if (btn) {
+    btn.classList.add("active");
+  }
+
+  if (name === "heatmap") {
     buildHeatmap();
+  }
 
-    buildAlerts();
-
-    buildReports();
-
+  if (name === "trends") {
     buildTrendChart(currentRange);
+  }
+
 }
+
+
+/* ═══════════════════════════════════════════
+   AUTH
+═══════════════════════════════════════════ */
+
+const USERS = {
+
+  admin: "admin123",
+  sodion: "sodion123",
+  operator: "op2024"
+
+};
+
+
+function login() {
+
+  const u =
+    document
+      .getElementById("username")
+      .value
+      .trim();
+
+  const p =
+    document
+      .getElementById("password")
+      .value;
+
+  const err =
+    document.getElementById(
+      "login-error"
+    );
+
+
+  if (
+    USERS[u] &&
+    USERS[u] === p
+  ) {
+
+    err.classList.add("hidden");
+
+    document
+      .getElementById("user-chip")
+      .textContent =
+      u[0].toUpperCase();
+
+    document
+      .getElementById("login-page")
+      .classList.remove("active");
+
+    document
+      .getElementById("dashboard-page")
+      .classList.add("active");
+
+    initDashboard();
+
+  } else {
+
+    err.classList.remove("hidden");
+
+  }
+
+}
+
+
+function logout() {
+
+  document
+    .getElementById("dashboard-page")
+    .classList.remove("active");
+
+  document
+    .getElementById("login-page")
+    .classList.add("active");
+
+  document
+    .getElementById("username")
+    .value = "";
+
+  document
+    .getElementById("password")
+    .value = "";
+
+  destroyCharts();
+
+}
+
+
+/* ═══════════════════════════════════════════
+   CLOCK
+═══════════════════════════════════════════ */
+
+setInterval(() => {
+
+  const n = new Date();
+
+  const pad =
+    v =>
+      String(v).padStart(2, "0");
+
+  const clock =
+    document.getElementById("clock");
+
+  if (clock) {
+
+    clock.textContent =
+      `${pad(n.getHours())}:` +
+      `${pad(n.getMinutes())}:` +
+      `${pad(n.getSeconds())}`;
+
+  }
+
+}, 1000);
+
+
+/* ═══════════════════════════════════════════
+   DESTROY CHARTS
+═══════════════════════════════════════════ */
+
+function destroyCharts() {
+
+  [
+    lineChart,
+    barChart,
+    trendChart
+  ].forEach(chart => {
+
+    if (chart) {
+      chart.destroy();
+    }
+
+  });
+
+  lineChart = null;
+  barChart = null;
+  trendChart = null;
+
+}
+
+
+/* ═══════════════════════════════════════════
+   INITIALIZATION
+═══════════════════════════════════════════ */
+
+async function initDashboard() {
+
+  await getBMSData();
+
+  await getAllPackData();
+
+  buildHeatmap();
+  buildAlerts();
+  buildReports();
+
+}
+
+
+/* ═══════════════════════════════════════════
+   LIVE UPDATE
+═══════════════════════════════════════════ */
+
+let refreshTimer = null;
+
+
+function startLiveUpdates() {
+
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+  }
+
+  refreshTimer =
+    setInterval(async () => {
+
+      await getBMSData();
+
+      await getAllPackData();
+
+      /*
+         No page flashing.
+         No fake animation.
+         Existing UI remains.
+      */
+
+    }, 5000);
+
+}
+
+
+/* ═══════════════════════════════════════════
+   START
+═══════════════════════════════════════════ */
+
+document.addEventListener(
+  "keydown",
+  e => {
+
+    if (
+      e.key === "Enter" &&
+      document
+        .getElementById("login-page")
+        ?.classList.contains("active")
+    ) {
+
+      login();
+
+    }
+
+  }
+);
+
+
+/*
+   Start live updates after
+   the dashboard loads.
+*/
+
+const originalInitDashboard =
+  initDashboard;
+
+initDashboard = async function () {
+
+  await originalInitDashboard();
+
+  startLiveUpdates();
+
+};
