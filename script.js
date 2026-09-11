@@ -2050,6 +2050,39 @@ function switchTab(
 
 
 /* ═══════════════════════════════════════════
+   AUTO MOVING EFFECT — EVERY 5 SECONDS
+═══════════════════════════════════════════ */
+
+let barChartOffset = 0;
+
+setInterval(() => {
+
+  if (!barChart) return;
+
+  const totalPacks = PACKS.length;
+
+  if (totalPacks <= 1) return;
+
+  barChartOffset++;
+
+  if (barChartOffset >= totalPacks) {
+    barChartOffset = 0;
+  }
+
+  /*
+     Smooth movement to the next pack
+  */
+  barChart.options.animation = {
+    duration: 900,
+    easing: "easeInOutQuart"
+  };
+
+  barChart.update();
+
+}, 5000);
+
+
+/* ═══════════════════════════════════════════
    AUTH
 ═══════════════════════════════════════════ */
 
