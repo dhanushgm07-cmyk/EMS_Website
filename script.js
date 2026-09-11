@@ -783,316 +783,187 @@ function buildBarChart() {
 
   const packsToShow =
     selected === "All Packs"
-      ? PACKS.filter(
-          pack => PACK_DATA[pack]
-        )
+      ? PACKS.filter(pack => PACK_DATA[pack])
       : PACK_DATA[selected]
       ? [selected]
       : [];
 
   if (!packsToShow.length) return;
 
-  const labels =
-    packsToShow;
+  const labels = packsToShow;
 
-  const voltage =
-    packsToShow.map(
-      pack =>
-        Number(
-          PACK_DATA[pack]?.voltage || 0
-        )
-    );
+  const voltage = packsToShow.map(pack =>
+    Number(PACK_DATA[pack]?.voltage || 0)
+  );
 
-  const soc =
-    packsToShow.map(
-      pack =>
-        Number(
-          PACK_DATA[pack]?.soc || 0
-        )
-    );
+  const soc = packsToShow.map(pack =>
+    Number(PACK_DATA[pack]?.soc || 0)
+  );
 
   const voltageColors = [
-
     "#FF924C",
-
     "#A7B89C",
-
     "#E0A25B",
-
     "#D75B5B",
-
     "#E57A2A",
-
     "#3FB950",
-
     "#6B8E23",
-
     "#8A6FDF"
-
   ];
 
+  barChart = new Chart(ctx, {
 
-  barChart =
-    new Chart(
-      ctx,
-      {
+    type: "bar",
 
-        type: "bar",
+    data: {
 
-        data: {
+      labels: labels,
 
-          labels:
-            labels,
+      datasets: [
 
-          datasets: [
+        {
+          label: "Voltage (V)",
+          data: voltage,
 
-            {
-              label:
-                "Voltage (V)",
+          backgroundColor:
+            packsToShow.map(pack =>
+              voltageColors[PACKS.indexOf(pack)]
+            ),
 
-              data:
-                voltage,
-
-              backgroundColor:
-                packsToShow.map(
-                  pack =>
-                    voltageColors[
-                      PACKS.indexOf(pack)
-                    ]
-                ),
-
-              borderRadius:
-                6,
-
-              yAxisID:
-                "y"
-            },
-
-
-            {
-              label:
-                "SOC (%)",
-
-              data:
-                soc,
-
-              backgroundColor:
-                "rgba(167,184,156,0.5)",
-
-              borderRadius:
-                6,
-
-              yAxisID:
-                "y1"
-            }
-
-          ]
-
+          borderRadius: 6,
+          yAxisID: "y"
         },
 
+        {
+          label: "SOC (%)",
+          data: soc,
 
-        options: {
+          backgroundColor:
+            "rgba(167,184,156,0.5)",
 
-          ...CHART_DEFAULTS,
+          borderRadius: 6,
+          yAxisID: "y1"
+        }
 
-          aspectRatio:
-            2,
+      ]
+    },
 
+    options: {
 
-          plugins: {
+      ...CHART_DEFAULTS,
 
-            ...CHART_DEFAULTS.plugins,
+      aspectRatio: 2,
 
-            title: {
+      plugins: {
 
-              display:
-                true,
+        ...CHART_DEFAULTS.plugins,
 
-              text:
-                selected === "All Packs"
-                  ? "Battery Voltage & Estimated SOC — All Packs"
-                  : `Battery Voltage & Estimated SOC — ${selected}`,
+        title: {
 
-              font: {
+          display: true,
 
-                family:
-                  "Inter",
+          text:
+            selected === "All Packs"
+              ? "Battery Voltage & Estimated SOC — All Packs"
+              : `Battery Voltage & Estimated SOC — ${selected}`,
 
-                size:
-                  13,
-
-                weight:
-                  "600"
-
-              },
-
-              color:
-                "#4A4A4A"
-
-            }
-
+          font: {
+            family: "Inter",
+            size: 13,
+            weight: "600"
           },
 
+          color: "#4A4A4A"
+        }
+      },
 
-          scales: {
+      scales: {
 
-            /* ═══════════════════════════════
-               X AXIS
-            ═══════════════════════════════ */
+        x: {
 
-            x: {
+          grid: {
+            color: "#E0E0E0"
+          },
 
-              grid: {
+          ticks: {
 
-                color:
-                  "#E0E0E0"
-
-              },
-
-              ticks: {
-
-                font: {
-
-                  family:
-                    "Inter",
-
-                  size:
-                    11
-
-                },
-
-                color:
-                  "#6B6B6B"
-
-              }
-
+            font: {
+              family: "Inter",
+              size: 11
             },
 
-
-            /* ═══════════════════════════════
-               LEFT AXIS — VOLTAGE
-               
-               FIXED:
-               0 V → 60 V
-            ═══════════════════════════════ */
-
-            y: {
-
-              min:
-                0,
-
-              max:
-                60,
-
-              beginAtZero:
-                true,
-
-              grid: {
-
-                color:
-                  "#E0E0E0"
-
-              },
-
-              ticks: {
-
-                stepSize:
-                  10,
-
-                font: {
-
-                  family:
-                    "Inter",
-
-                  size:
-                    11
-
-                },
-
-                color:
-                  "#6B6B6B",
-
-                callback:
-                  function(value) {
-
-                    return value + " V";
-
-                  }
-
-              },
-
-              position:
-                "left"
-
-            },
-
-
-            /* ═══════════════════════════════
-               RIGHT AXIS — SOC
-               
-               FIXED:
-               0% → 100%
-            ═══════════════════════════════ */
-
-            y1: {
-
-              min:
-                0,
-
-              max:
-                100,
-
-              beginAtZero:
-                true,
-
-              grid: {
-
-                display:
-                  false
-
-              },
-
-              ticks: {
-
-                stepSize:
-                  20,
-
-                font: {
-
-                  family:
-                    "Inter",
-
-                  size:
-                    11
-
-                },
-
-                color:
-                  "#6B6B6B",
-
-                callback:
-                  function(value) {
-
-                    return value + " %";
-
-                  }
-
-              },
-
-              position:
-                "right"
-
-            }
-
+            color: "#6B6B6B"
           }
+        },
 
+        /* =====================================
+           VOLTAGE AXIS — ONLY CHANGE
+           FIXED 0 TO 60 V
+        ===================================== */
+
+        y: {
+
+          grid: {
+            color: "#E0E0E0"
+          },
+
+          ticks: {
+
+            stepSize: 10,
+
+            font: {
+              family: "Inter",
+              size: 11
+            },
+
+            color: "#6B6B6B",
+
+            callback: function(value) {
+              return value + " V";
+            }
+          },
+
+          position: "left",
+
+          min: 0,
+
+          max: 60,
+
+          beginAtZero: true
+        },
+
+        /* =====================================
+           SOC AXIS — UNCHANGED
+           0 TO 100 %
+        ===================================== */
+
+        y1: {
+
+          grid: {
+            display: false
+          },
+
+          ticks: {
+
+            font: {
+              family: "Inter",
+              size: 11
+            },
+
+            color: "#6B6B6B"
+          },
+
+          position: "right",
+
+          min: 0,
+
+          max: 100
         }
 
       }
-    );
-
+    }
+  });
 }
-
 
 /* ═══════════════════════════════════════════
    CHART DEFAULTS
