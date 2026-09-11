@@ -1,9 +1,10 @@
-/* =========================================================
-   EMS ENERGY DASHBOARD
+/* ═══════════════════════════════════════════
+   EMS — script.js
    8 PACK REAL SUPABASE VERSION
-   ========================================================= */
+═══════════════════════════════════════════ */
 
-const supabaseUrl = "https://xfozfhopqxokmdcgyhqy.supabase.co";
+const supabaseUrl =
+  "https://xfozfhopqxokmdcgyhqy.supabase.co";
 
 const supabaseKey =
   "sb_publishable_yx3wAYXNdfYo8HwrmDUryQ_idY6gR7z";
@@ -14,9 +15,9 @@ const db = supabase.createClient(
 );
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    PACK CONFIGURATION
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 const PACKS = [
   "Pack 1",
@@ -41,9 +42,9 @@ const PACK_TABLES = {
 };
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    GLOBAL DATA
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 let BMS_DATA = [];
 let PACK_DATA = {};
@@ -59,310 +60,19 @@ let refreshTimer = null;
 let toastTimer = null;
 
 
-/* =========================================================
-   CHART DEFAULTS
-   ========================================================= */
-
-const CHART_DEFAULTS = {
-  responsive: true,
-  maintainAspectRatio: true,
-
-  plugins: {
-    legend: {
-      labels: {
-        font: {
-          family: "Inter",
-          size: 11
-        },
-
-        color: "#6B6B6B",
-        boxWidth: 12
-      }
-    }
-  },
-
-  scales: {
-    x: {
-      grid: {
-        color: "#E0E0E0"
-      },
-
-      ticks: {
-        font: {
-          family: "Inter",
-          size: 11
-        },
-
-        color: "#6B6B6B"
-      }
-    },
-
-    y: {
-      grid: {
-        color: "#E0E0E0"
-      },
-
-      ticks: {
-        font: {
-          family: "Inter",
-          size: 11
-        },
-
-        color: "#6B6B6B"
-      }
-    }
-  }
-};
-
-
-/* =========================================================
-   SAFE VALUE SETTER
-   ========================================================= */
-
-function setValue(id, value) {
-
-  const el = document.getElementById(id);
-
-  if (!el) return;
-
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    el.textContent = "--";
-    return;
-  }
-
-  const number = Number(value);
-
-  if (Number.isFinite(number)) {
-    el.textContent = number.toFixed(1);
-  } else {
-    el.textContent = value;
-  }
-}
-
-
-/* =========================================================
-   OPTIONAL PACK VALUE SETTER
-   ========================================================= */
-
-function setOptionalPackValue(ids, value) {
-
-  for (const id of ids) {
-
-    const el = document.getElementById(id);
-
-    if (!el) continue;
-
-    if (
-      value === null ||
-      value === undefined ||
-      !Number.isFinite(Number(value))
-    ) {
-      el.textContent = "--";
-    } else {
-      el.textContent = Number(value).toFixed(1);
-    }
-
-    return;
-  }
-}
-
-
-/* =========================================================
-   SODIUM-ION SOC ESTIMATION
-   =========================================================
-   
-   This is an ESTIMATED SOC based on voltage.
-   It is not the RBMS internal SOC.
-   ========================================================= */
-
-function calculateEstimatedSOCFromCellVoltage(cellVoltage) {
-
-  const points = [
-
-    [1.50, 0],
-
-    [2.00, 5],
-
-    [2.50, 10],
-
-    [2.80, 20],
-
-    [3.00, 30],
-
-    [3.10, 40],
-
-    [3.20, 50],
-
-    [3.25, 60],
-
-    [3.30, 75],
-
-    [3.35, 90],
-
-    [3.40, 97],
-
-    [3.45, 100]
-
-  ];
-
-  const v = Number(cellVoltage);
-
-  if (!Number.isFinite(v)) {
-    return 0;
-  }
-
-  if (v <= 1.50) {
-    return 0;
-  }
-
-  if (v >= 3.45) {
-    return 100;
-  }
-
-  for (let i = 1; i < points.length; i++) {
-
-    const [v1, s1] = points[i - 1];
-
-    const [v2, s2] = points[i];
-
-    if (v <= v2) {
-
-      const ratio =
-        (v - v1) /
-        (v2 - v1);
-
-      return Math.round(
-        s1 +
-        ratio * (s2 - s1)
-      );
-    }
-  }
-
-  return 0;
-}
-
-
-/* =========================================================
-   PACK SOC
-   ========================================================= */
-
-function calculatePackSOC(cells) {
-
-  const validCells = cells
-
-    .map(Number)
-
-    .filter(v =>
-      Number.isFinite(v) &&
-      v > 0
-    );
-
-  if (!validCells.length) {
-    return 0;
-  }
-
-  const averageCellVoltage =
-    validCells.reduce(
-      (sum, value) =>
-        sum + value,
-      0
-    ) /
-    validCells.length;
-
-  return calculateEstimatedSOCFromCellVoltage(
-    averageCellVoltage
-  );
-}
-
-
-/* =========================================================
-   CELL STATUS
-   ========================================================= */
-
-function getCellStatus(voltage) {
-
-  const v = Number(voltage);
-
-  if (!Number.isFinite(v)) {
-    return "alert";
-  }
-
-  /*
-    Sodium-ion limits
-
-    Alert:
-    < 1.5V
-    > 3.5V
-
-    Caution:
-    1.5V - 1.7V
-    3.4V - 3.5V
-
-    Balanced:
-    1.7V - 3.4V
-  */
-
-  if (
-    v < 1.5 ||
-    v > 3.5
-  ) {
-    return "alert";
-  }
-
-  if (
-    v < 1.7 ||
-    v > 3.4
-  ) {
-    return "caution";
-  }
-
-  return "balanced";
-}
-
-
-/* =========================================================
-   CELL STATUS COLOR
-   ========================================================= */
-
-function getCellColor(status) {
-
-  if (status === "alert") {
-    return "#D75B5B";
-  }
-
-  if (status === "caution") {
-    return "#E0A25B";
-  }
-
-  return "#A7B89C";
-}
-
-
-/* =========================================================
+/* ═══════════════════════════════════════════
    GET OVERALL BMS DATA
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 async function getBMSData() {
 
   const { data, error } = await db
-
     .from("BMS_Data")
-
     .select("*")
-
-    .order(
-      "created_at",
-      {
-        ascending: false
-      }
-    )
-
+    .order("created_at", {
+      ascending: false
+    })
     .limit(50);
-
 
   if (error) {
 
@@ -374,11 +84,7 @@ async function getBMSData() {
     return;
   }
 
-
-  if (
-    !data ||
-    data.length === 0
-  ) {
+  if (!data || data.length === 0) {
 
     console.warn(
       "No BMS data available"
@@ -387,20 +93,17 @@ async function getBMSData() {
     return;
   }
 
-
   BMS_DATA = data;
 
-
   /*
-    KPI VALUES ARE OVERALL
-    SYSTEM VALUES.
+     These six KPI cards are ALWAYS
+     overall/system values.
 
-    Pack selector does NOT
-    affect these six cards.
+     The pack selector does NOT
+     affect them.
   */
 
   const latest = data[0];
-
 
   setValue(
     "kpi-soc",
@@ -432,274 +135,325 @@ async function getBMSData() {
     latest.Power
   );
 
-
   updateKPIStatus(
     latest.Current
   );
 
-
   buildLineChart();
-
   buildBarChart();
 }
 
 
-/* =========================================================
-   GET ONE PACK
-   ========================================================= */
+/* ═══════════════════════════════════════════
+   SODIUM-ION VOLTAGE BASED SOC ESTIMATION
+═══════════════════════════════════════════ */
 
-async function getOnePackData(packName) {
+function calculateEstimatedSOCFromCellVoltage(
+  cellVoltage
+) {
 
-  const table =
-    PACK_TABLES[packName];
+  const points = [
 
-  if (!table) {
+    [1.50, 0],
+    [2.00, 5],
+    [2.50, 10],
+    [2.80, 20],
+    [3.00, 30],
+    [3.10, 40],
+    [3.20, 50],
+    [3.25, 60],
+    [3.30, 75],
+    [3.35, 90],
+    [3.40, 97],
+    [3.45, 100]
 
-    console.error(
-      "No table configured for",
-      packName
-    );
+  ];
 
-    return null;
+  const v =
+    Number(cellVoltage);
+
+  if (!Number.isFinite(v)) {
+    return 0;
   }
 
-
-  try {
-
-    const result =
-      await db
-
-        .from(table)
-
-        .select("*")
-
-        .order(
-          "created_at",
-          {
-            ascending: false
-          }
-        )
-
-        .limit(1);
-
-
-    const data =
-      result.data;
-
-    const error =
-      result.error;
-
-
-    if (error) {
-
-      console.error(
-        `${packName} READ ERROR:`,
-        error
-      );
-
-      return null;
-    }
-
-
-    if (
-      !data ||
-      data.length === 0
-    ) {
-
-      console.warn(
-        `${packName}: No rows found`
-      );
-
-      return null;
-    }
-
-
-    const row =
-      data[0];
-
-
-    const cells = [];
-
-
-    /*
-      Always create exactly
-      16 cell positions.
-    */
-
-    for (
-      let i = 1;
-      i <= 16;
-      i++
-    ) {
-
-      const raw =
-        row[`Cell_${i}`];
-
-      const value =
-        Number.parseFloat(raw);
-
-
-      if (
-        Number.isFinite(value)
-      ) {
-
-        cells.push(value);
-
-      } else {
-
-        cells.push(0);
-      }
-    }
-
-
-    const validCells =
-      cells.filter(
-        value =>
-          Number.isFinite(value) &&
-          value > 0
-      );
-
-
-    /*
-      Pack voltage =
-      sum of all valid cells.
-    */
-
-    const packVoltage =
-      validCells.reduce(
-        (sum, value) =>
-          sum + value,
-        0
-      );
-
-
-    /*
-      Average cell voltage.
-    */
-
-    const averageCellVoltage =
-      validCells.length
-        ? validCells.reduce(
-            (sum, value) =>
-              sum + value,
-            0
-          ) /
-          validCells.length
-        : 0;
-
-
-    /*
-      Estimated SOC.
-    */
-
-    const estimatedSOC =
-      calculatePackSOC(
-        cells
-      );
-
-
-    return {
-
-      name: packName,
-
-      cells: cells,
-
-      voltage: packVoltage,
-
-      averageCellVoltage:
-        averageCellVoltage,
-
-      soc: estimatedSOC,
-
-      created_at:
-        row.created_at,
-
-      available: true
-    };
-
-
-  } catch (error) {
-
-    console.error(
-      `${packName} EXCEPTION:`,
-      error
-    );
-
-    return null;
+  if (v <= points[0][0]) {
+    return 0;
   }
+
+  if (
+    v >=
+    points[points.length - 1][0]
+  ) {
+    return 100;
+  }
+
+  for (
+    let i = 1;
+    i < points.length;
+    i++
+  ) {
+
+    const [
+      v1,
+      s1
+    ] = points[i - 1];
+
+    const [
+      v2,
+      s2
+    ] = points[i];
+
+    if (v <= v2) {
+
+      const ratio =
+        (v - v1) /
+        (v2 - v1);
+
+      return Math.round(
+        s1 +
+        ratio *
+        (s2 - s1)
+      );
+    }
+  }
+
+  return 0;
 }
 
 
-/* =========================================================
-   GET ALL 8 PACKS
-   ========================================================= */
+/* ═══════════════════════════════════════════
+   CALCULATE PACK SOC
+═══════════════════════════════════════════ */
+
+function calculatePackSOC(
+  cells
+) {
+
+  const validCells =
+    cells
+      .map(Number)
+      .filter(
+        v =>
+          Number.isFinite(v) &&
+          v > 0
+      );
+
+  if (!validCells.length) {
+    return 0;
+  }
+
+  const averageCellVoltage =
+    validCells.reduce(
+      (sum, v) =>
+        sum + v,
+      0
+    ) /
+    validCells.length;
+
+  return calculateEstimatedSOCFromCellVoltage(
+    averageCellVoltage
+  );
+}
+
+
+/* ═══════════════════════════════════════════
+   GET CELL DATA FOR ALL 8 PACKS
+═══════════════════════════════════════════ */
 
 async function getAllPackData() {
 
-  /*
-    Create a completely new object every time.
+  const requests =
+    PACKS.map(
+      async pack => {
 
-    This prevents old/stale pack data
-    from remaining in memory.
-  */
+        const table =
+          PACK_TABLES[pack];
 
-  const newPackData = {};
+        const {
+          data,
+          error
+        } = await db
+          .from(table)
+          .select("*")
+          .order(
+            "created_at",
+            {
+              ascending: false
+            }
+          )
+          .limit(1);
 
+        if (error) {
 
-  const results =
-    await Promise.all(
+          console.error(
+            pack +
+            " ERROR:",
+            error
+          );
 
-      PACKS.map(
-        async packName => {
+          return;
+        }
 
-          const result =
-            await getOnePackData(
-              packName
+        if (
+          data &&
+          data.length > 0
+        ) {
+
+          const row =
+            data[0];
+
+          const cells = [];
+
+          for (
+            let i = 1;
+            i <= 16;
+            i++
+          ) {
+
+            const value =
+              parseFloat(
+                row[
+                  `Cell_${i}`
+                ]
+              );
+
+            if (
+              Number.isFinite(value)
+            ) {
+
+              cells.push(
+                value
+              );
+
+            } else {
+
+              cells.push(0);
+
+            }
+          }
+
+          /*
+             Cell values in Supabase
+             are stored in VOLTS.
+
+             Pack voltage =
+             sum of 16 cell voltages.
+          */
+
+          const packVoltage =
+            cells.reduce(
+              (sum, value) =>
+                sum + value,
+              0
             );
 
-          return {
-            packName,
-            result
+          const averageCellVoltage =
+            cells.reduce(
+              (sum, value) =>
+                sum + value,
+              0
+            ) /
+            cells.length;
+
+          const estimatedSOC =
+            calculatePackSOC(
+              cells
+            );
+
+          PACK_DATA[pack] = {
+
+            cells:
+              cells,
+
+            voltage:
+              packVoltage,
+
+            averageCellVoltage:
+              averageCellVoltage,
+
+            soc:
+              estimatedSOC,
+
+            created_at:
+              row.created_at
+
           };
         }
-      )
+      }
     );
 
-
-  for (const item of results) {
-
-    if (item.result) {
-
-      newPackData[
-        item.packName
-      ] = item.result;
-    }
-  }
-
-
-  PACK_DATA =
-    newPackData;
-
-
-  console.log(
-    "PACK DATA LOADED:",
-    Object.keys(PACK_DATA)
+  await Promise.all(
+    requests
   );
 
-
-  updateSelectedPackDisplay();
+  /*
+     Voltage/SOC chart ALWAYS
+     shows all available packs.
+  */
 
   buildBarChart();
+
+  /*
+     Update the currently selected
+     heat-map pack.
+  */
 
   buildHeatmap();
 }
 
 
-/* =========================================================
-   KPI STATUS
-   ========================================================= */
+/* ═══════════════════════════════════════════
+   SAFE VALUE SETTER
+═══════════════════════════════════════════ */
 
-function updateKPIStatus(current) {
+function setValue(
+  id,
+  value
+) {
+
+  const el =
+    document.getElementById(id);
+
+  if (!el) {
+    return;
+  }
+
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+
+    el.textContent = "--";
+
+    return;
+  }
+
+  const number =
+    Number(value);
+
+  if (
+    Number.isFinite(number)
+  ) {
+
+    el.textContent =
+      number.toFixed(1);
+
+  } else {
+
+    el.textContent =
+      value;
+  }
+}
+
+
+/* ═══════════════════════════════════════════
+   KPI STATUS
+═══════════════════════════════════════════ */
+
+function updateKPIStatus(
+  current
+) {
 
   const currTrend =
     document.getElementById(
@@ -711,7 +465,6 @@ function updateKPIStatus(current) {
       "kpi-power-trend"
     );
 
-
   if (
     !currTrend ||
     !powTrend
@@ -719,12 +472,9 @@ function updateKPIStatus(current) {
     return;
   }
 
-
-  const value =
-    Number(current);
-
-
-  if (value > 0) {
+  if (
+    Number(current) > 0
+  ) {
 
     currTrend.textContent =
       "Charging";
@@ -732,15 +482,17 @@ function updateKPIStatus(current) {
     currTrend.className =
       "kpi-trend up";
 
-
     powTrend.textContent =
       "Charging";
 
     powTrend.className =
       "kpi-trend up";
 
+  }
 
-  } else if (value < 0) {
+  else if (
+    Number(current) < 0
+  ) {
 
     currTrend.textContent =
       "Discharging";
@@ -748,22 +500,21 @@ function updateKPIStatus(current) {
     currTrend.className =
       "kpi-trend down";
 
-
     powTrend.textContent =
       "Discharging";
 
     powTrend.className =
       "kpi-trend down";
 
+  }
 
-  } else {
+  else {
 
     currTrend.textContent =
       "Idle";
 
     currTrend.className =
       "kpi-trend";
-
 
     powTrend.textContent =
       "Idle";
@@ -774,9 +525,10 @@ function updateKPIStatus(current) {
 }
 
 
-/* =========================================================
-   GET SELECTED PACK
-   ========================================================= */
+/* ═══════════════════════════════════════════
+   SELECTED PACK
+   USED ONLY BY CELL HEAT MAP
+═══════════════════════════════════════════ */
 
 function getSelectedPack() {
 
@@ -785,239 +537,74 @@ function getSelectedPack() {
       "sel-pack"
     );
 
-
   if (!selector) {
-    return "All Packs";
+    return "Pack 1";
   }
 
+  if (
+    PACKS.includes(
+      selector.value
+    )
+  ) {
 
-  return (
-    selector.value ||
-    "All Packs"
-  );
+    return selector.value;
+
+  }
+
+  return "Pack 1";
 }
 
 
-/* =========================================================
-   GET PACKS TO DISPLAY
-   ========================================================= */
+/* ═══════════════════════════════════════════
+   PACK DISPLAY
+   INTENTIONALLY EMPTY
 
-function getPacksToDisplay() {
-
-  const selected =
-    getSelectedPack();
-
-
-  if (
-    selected === "All Packs"
-  ) {
-
-    /*
-      IMPORTANT:
-
-      Always return ALL 8 packs.
-
-      Do NOT filter them using
-      PACK_DATA here.
-
-      If one pack has no data,
-      the heatmap/chart will show
-      "--" instead of completely
-      removing that pack.
-    */
-
-    return [...PACKS];
-  }
-
-
-  if (
-    PACKS.includes(selected)
-  ) {
-
-    return [selected];
-  }
-
-
-  return [];
-}
-
-
-/* =========================================================
-   SELECTED PACK DISPLAY
-   ========================================================= */
+   The Voltage & SOC chart is NOT controlled
+   by the pack selector.
+═══════════════════════════════════════════ */
 
 function updateSelectedPackDisplay() {
 
-  const selected =
-    getSelectedPack();
-
-
   /*
-    ALL PACKS
+     Intentionally empty.
+
+     Pack selector is ONLY for
+     Cell Voltage Heat Map.
+
+     Battery Voltage & SOC chart
+     always displays all 8 packs.
   */
 
-  if (
-    selected === "All Packs"
-  ) {
-
-    const available =
-      PACKS
-
-        .map(
-          pack =>
-            PACK_DATA[pack]
-        )
-
-        .filter(Boolean);
-
-
-    if (
-      available.length === 0
-    ) {
-
-      setOptionalPackValue(
-        [
-          "selected-pack-voltage",
-          "pack-voltage"
-        ],
-        null
-      );
-
-      setOptionalPackValue(
-        [
-          "selected-pack-soc",
-          "pack-soc"
-        ],
-        null
-      );
-
-      return;
-    }
-
-
-    /*
-      Total voltage =
-      sum of all pack voltages.
-    */
-
-    const totalVoltage =
-      available.reduce(
-        (sum, pack) =>
-          sum +
-          Number(
-            pack.voltage || 0
-          ),
-        0
-      );
-
-
-    /*
-      Overall estimated SOC =
-      average SOC of available packs.
-    */
-
-    const averageSOC =
-      available.reduce(
-        (sum, pack) =>
-          sum +
-          Number(
-            pack.soc || 0
-          ),
-        0
-      ) /
-      available.length;
-
-
-    setOptionalPackValue(
-      [
-        "selected-pack-voltage",
-        "pack-voltage"
-      ],
-      totalVoltage
-    );
-
-
-    setOptionalPackValue(
-      [
-        "selected-pack-soc",
-        "pack-soc"
-      ],
-      averageSOC
-    );
-
-
-    return;
-  }
-
-
-  /*
-    INDIVIDUAL PACK
-  */
-
-  const pack =
-    PACK_DATA[selected];
-
-
-  if (!pack) {
-
-    setOptionalPackValue(
-      [
-        "selected-pack-voltage",
-        "pack-voltage"
-      ],
-      null
-    );
-
-    setOptionalPackValue(
-      [
-        "selected-pack-soc",
-        "pack-soc"
-      ],
-      null
-    );
-
-    return;
-  }
-
-
-  setOptionalPackValue(
-    [
-      "selected-pack-voltage",
-      "pack-voltage"
-    ],
-    pack.voltage
-  );
-
-
-  setOptionalPackValue(
-    [
-      "selected-pack-soc",
-      "pack-soc"
-    ],
-    pack.soc
-  );
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    FILTER CHANGE
-   ========================================================= */
+   ONLY HEAT MAP CHANGES
+═══════════════════════════════════════════ */
 
 function onFilterChange() {
 
-  updateSelectedPackDisplay();
+  /*
+     IMPORTANT:
 
-  buildLineChart();
+     Do NOT rebuild the bar chart here.
 
-  buildBarChart();
+     The Voltage & SOC chart must
+     always remain All 8 Packs.
+
+     Only the Cell Voltage Heat Map
+     changes when Pack selection changes.
+  */
 
   buildHeatmap();
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    LINE CHART
-   ========================================================= */
+   OVERALL SYSTEM DATA
+═══════════════════════════════════════════ */
 
 function buildLineChart() {
 
@@ -1026,11 +613,9 @@ function buildLineChart() {
       "lineChart"
     );
 
-
   if (!ctx) {
     return;
   }
-
 
   if (lineChart) {
 
@@ -1039,24 +624,17 @@ function buildLineChart() {
     lineChart = null;
   }
 
-
-  if (
-    !BMS_DATA.length
-  ) {
+  if (!BMS_DATA.length) {
     return;
   }
-
 
   const data =
     [...BMS_DATA];
 
-
   const labels =
     data
-
       .slice()
       .reverse()
-
       .map(
         row =>
           new Date(
@@ -1064,19 +642,18 @@ function buildLineChart() {
           ).toLocaleTimeString(
             [],
             {
-              hour: "2-digit",
-              minute: "2-digit"
+              hour:
+                "2-digit",
+              minute:
+                "2-digit"
             }
           )
       );
 
-
   const powerValues =
     data
-
       .slice()
       .reverse()
-
       .map(
         row =>
           Number(
@@ -1084,13 +661,10 @@ function buildLineChart() {
           )
       );
 
-
   const pvValues =
     data
-
       .slice()
       .reverse()
-
       .map(
         row =>
           Number(
@@ -1098,21 +672,23 @@ function buildLineChart() {
           )
       );
 
-
   lineChart =
     new Chart(
       ctx,
       {
 
-        type: "line",
+        type:
+          "line",
 
         data: {
 
-          labels: labels,
+          labels:
+            labels,
 
           datasets: [
 
             {
+
               label:
                 "Charge/Discharge Power (kW)",
 
@@ -1125,17 +701,22 @@ function buildLineChart() {
               backgroundColor:
                 "rgba(255,146,76,0.08)",
 
-              borderWidth: 2,
+              borderWidth:
+                2,
 
-              fill: true,
+              fill:
+                true,
 
-              tension: 0.4,
+              tension:
+                0.4,
 
-              pointRadius: 2
+              pointRadius:
+                2
+
             },
 
-
             {
+
               label:
                 "PV Input (kW)",
 
@@ -1148,33 +729,40 @@ function buildLineChart() {
               backgroundColor:
                 "rgba(63,185,80,0.08)",
 
-              borderWidth: 2,
+              borderWidth:
+                2,
 
-              fill: true,
+              fill:
+                true,
 
-              tension: 0.4,
+              tension:
+                0.4,
 
-              pointRadius: 2
+              pointRadius:
+                2
+
             }
 
           ]
         },
 
-
         options: {
 
           ...CHART_DEFAULTS,
 
-          aspectRatio: 2
+          aspectRatio:
+            2
         }
+
       }
     );
 }
 
 
-/* =========================================================
-   VOLTAGE + SOC BAR CHART
-   ========================================================= */
+/* ═══════════════════════════════════════════
+   BATTERY VOLTAGE & SOC
+   ALWAYS ALL 8 PACKS
+═══════════════════════════════════════════ */
 
 function buildBarChart() {
 
@@ -1183,11 +771,9 @@ function buildBarChart() {
       "barChart"
     );
 
-
   if (!ctx) {
     return;
   }
-
 
   if (barChart) {
 
@@ -1196,14 +782,18 @@ function buildBarChart() {
     barChart = null;
   }
 
+  /*
+     ALWAYS show all 8 packs.
 
-  const selected =
-    getSelectedPack();
-
+     The heat-map selector has absolutely
+     NO effect on this chart.
+  */
 
   const packsToShow =
-    getPacksToDisplay();
-
+    PACKS.filter(
+      pack =>
+        PACK_DATA[pack]
+    );
 
   if (
     !packsToShow.length
@@ -1211,88 +801,52 @@ function buildBarChart() {
     return;
   }
 
-
   const labels =
     packsToShow;
 
-
-  /*
-    IMPORTANT:
-
-    Do NOT filter the packs
-    based on PACK_DATA.
-
-    This guarantees Pack 1-8
-    remain visible.
-  */
-
   const voltage =
     packsToShow.map(
-      pack => {
-
-        const data =
-          PACK_DATA[pack];
-
-        if (!data) {
-          return null;
-        }
-
-        return Number(
-          data.voltage || 0
-        );
-      }
+      pack =>
+        Number(
+          PACK_DATA[pack]
+            ?.voltage || 0
+        )
     );
-
 
   const soc =
     packsToShow.map(
-      pack => {
-
-        const data =
-          PACK_DATA[pack];
-
-        if (!data) {
-          return null;
-        }
-
-        return Number(
-          data.soc || 0
-        );
-      }
+      pack =>
+        Number(
+          PACK_DATA[pack]
+            ?.soc || 0
+        )
     );
-
 
   const voltageColors = [
 
     "#FF924C",
-
     "#A7B89C",
-
     "#E0A25B",
-
     "#D75B5B",
-
     "#E57A2A",
-
     "#3FB950",
-
     "#6B8E23",
-
     "#8A6FDF"
 
   ];
-
 
   barChart =
     new Chart(
       ctx,
       {
 
-        type: "bar",
+        type:
+          "bar",
 
         data: {
 
-          labels: labels,
+          labels:
+            labels,
 
           datasets: [
 
@@ -1314,11 +868,13 @@ function buildBarChart() {
                     ]
                 ),
 
-              borderRadius: 6,
+              borderRadius:
+                6,
 
-              yAxisID: "y"
+              yAxisID:
+                "y"
+
             },
-
 
             {
 
@@ -1331,21 +887,23 @@ function buildBarChart() {
               backgroundColor:
                 "rgba(167,184,156,0.5)",
 
-              borderRadius: 6,
+              borderRadius:
+                6,
 
-              yAxisID: "y1"
+              yAxisID:
+                "y1"
+
             }
 
           ]
         },
 
-
         options: {
 
           ...CHART_DEFAULTS,
 
-          aspectRatio: 2,
-
+          aspectRatio:
+            2,
 
           plugins: {
 
@@ -1353,22 +911,19 @@ function buildBarChart() {
 
             title: {
 
-              display: true,
+              display:
+                true,
 
               text:
-                selected ===
-                "All Packs"
-
-                  ? "Battery Voltage & Estimated SOC — All Packs"
-
-                  : `Battery Voltage & Estimated SOC — ${selected}`,
+                "Battery Voltage & Estimated SOC — All Packs",
 
               font: {
 
                 family:
                   "Inter",
 
-                size: 13,
+                size:
+                  13,
 
                 weight:
                   "600"
@@ -1377,9 +932,7 @@ function buildBarChart() {
               color:
                 "#4A4A4A"
             }
-
           },
-
 
           scales: {
 
@@ -1398,14 +951,14 @@ function buildBarChart() {
                   family:
                     "Inter",
 
-                  size: 11
+                  size:
+                    11
                 },
 
                 color:
                   "#6B6B6B"
               }
             },
-
 
             y: {
 
@@ -1422,7 +975,8 @@ function buildBarChart() {
                   family:
                     "Inter",
 
-                  size: 11
+                  size:
+                    11
                 },
 
                 color:
@@ -1435,7 +989,6 @@ function buildBarChart() {
               beginAtZero:
                 false
             },
-
 
             y1: {
 
@@ -1452,7 +1005,8 @@ function buildBarChart() {
                   family:
                     "Inter",
 
-                  size: 11
+                  size:
+                    11
                 },
 
                 color:
@@ -1462,21 +1016,120 @@ function buildBarChart() {
               position:
                 "right",
 
-              min: 0,
+              min:
+                0,
 
-              max: 100
+              max:
+                100
             }
 
           }
+
         }
+
       }
     );
 }
 
 
-/* =========================================================
-   HEATMAP
-   ========================================================= */
+/* ═══════════════════════════════════════════
+   CHART DEFAULTS
+═══════════════════════════════════════════ */
+
+const CHART_DEFAULTS = {
+
+  responsive:
+    true,
+
+  maintainAspectRatio:
+    true,
+
+  plugins: {
+
+    legend: {
+
+      labels: {
+
+        font: {
+
+          family:
+            "Inter",
+
+          size:
+            11
+        },
+
+        color:
+          "#6B6B6B",
+
+        boxWidth:
+          12
+      }
+    }
+
+  },
+
+  scales: {
+
+    x: {
+
+      grid: {
+
+        color:
+          "#E0E0E0"
+      },
+
+      ticks: {
+
+        font: {
+
+          family:
+            "Inter",
+
+          size:
+            11
+        },
+
+        color:
+          "#6B6B6B"
+      }
+
+    },
+
+    y: {
+
+      grid: {
+
+        color:
+          "#E0E0E0"
+      },
+
+      ticks: {
+
+        font: {
+
+          family:
+            "Inter",
+
+          size:
+            11
+        },
+
+        color:
+          "#6B6B6B"
+      }
+
+    }
+
+  }
+
+};
+
+
+/* ═══════════════════════════════════════════
+   CELL VOLTAGE HEAT MAP
+   SINGLE PACK ONLY
+═══════════════════════════════════════════ */
 
 function buildHeatmap() {
 
@@ -1485,342 +1138,169 @@ function buildHeatmap() {
       "hm-grid"
     );
 
-
   if (!grid) {
     return;
   }
 
+  grid.innerHTML =
+    "";
 
   /*
-    Completely rebuild only
-    the heatmap contents.
+     SINGLE PACK ONLY.
 
-    No page refresh.
-    No animation.
-    No collapse.
+     There is NO "All Packs"
+     mode anymore.
   */
-
-  grid.innerHTML = "";
-
 
   const selected =
     getSelectedPack();
 
+  const pack =
+    PACK_DATA[selected];
 
-  const packsToShow =
-    getPacksToDisplay();
-
-
-  if (
-    !packsToShow.length
-  ) {
+  if (!pack) {
 
     grid.innerHTML =
-      `
-        <div
-          style="
-            padding:20px;
-            color:#777;
-          "
-        >
-          No pack selected.
-        </div>
-      `;
+      "<div style='padding:20px'>No cell data available.</div>";
 
     return;
   }
 
+  const cells =
+    pack.cells || [];
 
   /*
-    ALL PACKS:
-
-    Every pack gets its own
-    heading + 16 cells.
-
-    INDIVIDUAL PACK:
-
-    Only one heading + 16 cells.
+     Always render exactly
+     16 cells.
   */
 
-  packsToShow.forEach(
-    (packName, packIndex) => {
+  for (
+    let i = 0;
+    i < 16;
+    i++
+  ) {
 
-      const pack =
-        PACK_DATA[packName];
-
-
-      /*
-        PACK HEADING
-      */
-
-      const heading =
-        document.createElement(
-          "div"
-        );
-
-
-      heading.className =
-        "hm-pack-heading";
-
-
-      /*
-        Keep each pack as a
-        separate visual section.
-
-        For All Packs, the
-        heading spans the grid.
-      */
-
-      heading.style.gridColumn =
-        "1 / -1";
-
-
-      heading.style.fontWeight =
-        "600";
-
-
-      heading.style.margin =
-        packIndex === 0
-          ? "0 0 8px"
-          : "24px 0 8px";
-
-
-      if (pack) {
-
-        heading.textContent =
-          `${packName} — ${pack.voltage.toFixed(2)} V | SOC ${pack.soc}%`;
-
-      } else {
-
-        heading.textContent =
-          `${packName} — No Data`;
-      }
-
-
-      grid.appendChild(
-        heading
+    const v =
+      Number(
+        cells[i] || 0
       );
 
+    let status;
 
-      /*
-        CELL DATA
-      */
+    /*
+       Sodium-ion thresholds:
 
-      for (
-        let i = 0;
-        i < 16;
-        i++
-      ) {
+       Alert:
+       < 1.5V or > 3.5V
 
-        const el =
-          document.createElement(
-            "div"
-          );
+       Caution:
+       1.5–1.7V
+       3.4–3.5V
 
+       Balanced:
+       1.7–3.4V
+    */
 
-        el.className =
-          "hm-zone";
+    if (
+      v < 1.5 ||
+      v > 3.5
+    ) {
 
-
-        let voltage = 0;
-
-
-        if (
-          pack &&
-          Array.isArray(
-            pack.cells
-          )
-        ) {
-
-          voltage =
-            Number(
-              pack.cells[i] || 0
-            );
-        }
-
-
-        /*
-          No data
-        */
-
-        if (
-          !pack ||
-          !Number.isFinite(
-            voltage
-          ) ||
-          voltage <= 0
-        ) {
-
-          el.style.background =
-            "#D8D8D8";
-
-
-          el.innerHTML =
-            `
-
-              <div class="z-name">
-                Cell ${i + 1}
-              </div>
-
-              <div class="z-kwh">
-                --
-              </div>
-
-              <div class="z-tip">
-
-                <strong>
-                  ${packName} — Cell ${i + 1}
-                </strong>
-
-                <br>
-
-                Voltage:
-                <strong>
-                  No Data
-                </strong>
-
-              </div>
-
-            `;
-
-
-          grid.appendChild(
-            el
-          );
-
-          continue;
-        }
-
-
-        /*
-          CELL STATUS
-        */
-
-        const status =
-          getCellStatus(
-            voltage
-          );
-
-
-        const bg =
-          getCellColor(
-            status
-          );
-
-
-        el.style.background =
-          bg;
-
-
-        /*
-          CELL DISPLAY
-        */
-
-        el.innerHTML =
-          `
-
-            <div class="z-name">
-              Cell ${i + 1}
-            </div>
-
-            <div class="z-kwh">
-              ${voltage.toFixed(3)}V
-            </div>
-
-            <div class="z-tip">
-
-              <strong>
-                ${packName} — Cell ${i + 1}
-              </strong>
-
-              <br>
-
-              Voltage:
-              <strong>
-                ${voltage.toFixed(3)}V
-              </strong>
-
-              <br>
-
-              Status:
-              <strong>
-                ${status}
-              </strong>
-
-            </div>
-
-          `;
-
-
-        grid.appendChild(
-          el
-        );
-      }
-
-
-      /*
-        Spacer between packs.
-
-        This keeps the original
-        multi-pack layout clean
-        instead of collapsing.
-      */
-
-      if (
-        selected === "All Packs" &&
-        packIndex <
-          packsToShow.length - 1
-      ) {
-
-        const spacer =
-          document.createElement(
-            "div"
-          );
-
-
-        spacer.style.gridColumn =
-          "1 / -1";
-
-
-        spacer.style.height =
-          "4px";
-
-
-        grid.appendChild(
-          spacer
-        );
-      }
+      status =
+        "alert";
 
     }
-  );
 
+    else if (
+      v < 1.7 ||
+      v > 3.4
+    ) {
 
-  /*
-    UPDATE HEATMAP TITLE
-  */
+      status =
+        "caution";
+
+    }
+
+    else {
+
+      status =
+        "balanced";
+    }
+
+    const bg =
+      status === "alert"
+        ? "#D75B5B"
+        : status === "caution"
+        ? "#E0A25B"
+        : "#A7B89C";
+
+    const el =
+      document.createElement(
+        "div"
+      );
+
+    el.className =
+      "hm-zone";
+
+    el.style.background =
+      bg;
+
+    el.innerHTML = `
+
+      <div class="z-name">
+        Cell ${i + 1}
+      </div>
+
+      <div class="z-kwh">
+        ${v.toFixed(3)}V
+      </div>
+
+      <div class="z-tip">
+
+        <strong>
+          ${selected} — Cell ${i + 1}
+        </strong>
+
+        <br>
+
+        Voltage:
+        <strong>
+          ${v.toFixed(3)}V
+        </strong>
+
+        <br>
+
+        Status:
+        <strong>
+          ${status}
+        </strong>
+
+      </div>
+
+    `;
+
+    grid.appendChild(
+      el
+    );
+  }
 
   const title =
     document.querySelector(
       "#tab-heatmap .card-title"
     );
 
-
   if (title) {
 
     title.textContent =
-      selected ===
-      "All Packs"
+      `Cell Voltage Heat Map — ${selected}`;
 
-        ? "Cell Voltage Heat Map — All Packs"
-
-        : `Cell Voltage Heat Map — ${selected}`;
   }
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    TRENDS
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 function setRange(
   range,
@@ -1829,7 +1309,6 @@ function setRange(
 
   currentRange =
     range;
-
 
   document
     .querySelectorAll(
@@ -1842,7 +1321,6 @@ function setRange(
         )
     );
 
-
   if (btn) {
 
     btn.classList.add(
@@ -1850,16 +1328,11 @@ function setRange(
     );
   }
 
-
   buildTrendChart(
     range
   );
 }
 
-
-/* =========================================================
-   TREND CHART
-   ========================================================= */
 
 function buildTrendChart(
   range
@@ -1870,11 +1343,9 @@ function buildTrendChart(
       "trendChart"
     );
 
-
   if (!ctx) {
     return;
   }
-
 
   if (trendChart) {
 
@@ -1883,19 +1354,14 @@ function buildTrendChart(
     trendChart = null;
   }
 
-
-  if (
-    !BMS_DATA.length
-  ) {
+  if (!BMS_DATA.length) {
     return;
   }
-
 
   const data =
     BMS_DATA
       .slice()
       .reverse();
-
 
   const labels =
     data.map(
@@ -1905,12 +1371,13 @@ function buildTrendChart(
         ).toLocaleTimeString(
           [],
           {
-            hour: "2-digit",
-            minute: "2-digit"
+            hour:
+              "2-digit",
+            minute:
+              "2-digit"
           }
         )
     );
-
 
   const soc =
     data.map(
@@ -1920,7 +1387,6 @@ function buildTrendChart(
         )
     );
 
-
   const power =
     data.map(
       row =>
@@ -1929,18 +1395,17 @@ function buildTrendChart(
         )
     );
 
-
   trendChart =
     new Chart(
       ctx,
       {
 
-        type: "line",
+        type:
+          "line",
 
         data: {
 
           labels:
-
             labels,
 
           datasets: [
@@ -1959,16 +1424,19 @@ function buildTrendChart(
               backgroundColor:
                 "rgba(255,146,76,0.06)",
 
-              borderWidth: 2,
+              borderWidth:
+                2,
 
-              fill: true,
+              fill:
+                true,
 
-              tension: 0.35,
+              tension:
+                0.35,
 
               yAxisID:
                 "y"
-            },
 
+            },
 
             {
 
@@ -1981,19 +1449,22 @@ function buildTrendChart(
               borderColor:
                 "#A7B89C",
 
-              borderWidth: 2,
+              borderWidth:
+                2,
 
-              fill: false,
+              fill:
+                false,
 
-              tension: 0.35,
+              tension:
+                0.35,
 
               yAxisID:
                 "y1"
+
             }
 
           ]
         },
-
 
         options: {
 
@@ -2001,7 +1472,6 @@ function buildTrendChart(
 
           aspectRatio:
             2.8,
-
 
           scales: {
 
@@ -2012,15 +1482,14 @@ function buildTrendChart(
                 color:
                   "#E0E0E0"
               }
-            },
 
+            },
 
             y: {
 
               position:
                 "left"
             },
-
 
             y1: {
 
@@ -2030,30 +1499,31 @@ function buildTrendChart(
               max:
                 100,
 
-              min:
-                0,
-
               grid: {
 
                 display:
                   false
               }
+
             }
 
           }
+
         }
+
       }
     );
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    ALERTS
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 const ALERTS = [
 
   {
+
     id:
       "a1",
 
@@ -2077,10 +1547,11 @@ const ALERTS = [
 
     desc:
       "Cell voltage exceeds the safe threshold. Immediate balancing required."
+
   },
 
-
   {
+
     id:
       "a2",
 
@@ -2104,6 +1575,7 @@ const ALERTS = [
 
     desc:
       "Battery temperature elevated. Check cooling system."
+
   }
 
 ];
@@ -2151,10 +1623,6 @@ const SEV_LABEL = {
 };
 
 
-/* =========================================================
-   FORMAT ALERT TIME
-   ========================================================= */
-
 function fmtTime(
   mins
 ) {
@@ -2163,17 +1631,18 @@ function fmtTime(
     mins < 60
   ) {
 
-    return `${mins}m ago`;
+    return (
+      `${mins}m ago`
+    );
   }
 
-
-  return `${Math.floor(mins / 60)}h ago`;
+  return (
+    `${Math.floor(
+      mins / 60
+    )}h ago`
+  );
 }
 
-
-/* =========================================================
-   BUILD ALERTS
-   ========================================================= */
 
 function buildAlerts() {
 
@@ -2182,11 +1651,9 @@ function buildAlerts() {
       "alerts-list"
     );
 
-
   if (!list) {
     return;
   }
-
 
   const critCount =
     ALERTS.filter(
@@ -2195,12 +1662,10 @@ function buildAlerts() {
         "critical"
     ).length;
 
-
   const badge =
     document.getElementById(
       "crit-badge"
     );
-
 
   if (badge) {
 
@@ -2208,92 +1673,77 @@ function buildAlerts() {
       `${critCount} Critical`;
   }
 
-
   list.innerHTML =
-    ALERTS
-      .map(
-        a => `
+    ALERTS.map(
+      a => `
 
-          <div class="acc-item">
+        <div class="acc-item">
 
-            <button
-              class="acc-trigger"
-              onclick="toggleAcc('${a.id}')"
-            >
+          <button
+            class="acc-trigger"
+            onclick="toggleAcc('${a.id}')"
+          >
 
-              <span
-                class="acc-sev-icon"
-              >
-                ${SEV_ICON[a.sev]}
-              </span>
+            <span class="acc-sev-icon">
+              ${SEV_ICON[a.sev]}
+            </span>
 
+            <div class="acc-meta">
 
-              <div class="acc-meta">
+              <div class="acc-meta-row">
 
-                <div
-                  class="acc-meta-row"
+                <span class="acc-title">
+                  ${a.title}
+                </span>
+
+                <span
+                  class="sev-badge ${SEV_CLASS[a.sev]}"
                 >
-
-                  <span
-                    class="acc-title"
-                  >
-                    ${a.title}
-                  </span>
-
-
-                  <span
-                    class="sev-badge ${SEV_CLASS[a.sev]}"
-                  >
-                    ${SEV_LABEL[a.sev]}
-                  </span>
-
-                </div>
-
-
-                <div class="acc-sub">
-                  ${a.equip}
-                </div>
-
-
-                <div class="acc-sub">
-                  ${fmtTime(a.time)}
-                </div>
+                  ${SEV_LABEL[a.sev]}
+                </span>
 
               </div>
 
+              <div class="acc-sub">
+                ${a.equip}
+              </div>
 
-              <span
-                class="acc-chevron"
-                id="chev-${a.id}"
-              >
-                ▾
-              </span>
-
-            </button>
-
-
-            <div
-              class="acc-body"
-              id="body-${a.id}"
-            >
-
-              <p>
-                ${a.desc}
-              </p>
+              <div class="acc-sub">
+                ${fmtTime(a.time)}
+              </div>
 
             </div>
 
+            <span
+              class="acc-chevron"
+              id="chev-${a.id}"
+            >
+              ▾
+            </span>
+
+          </button>
+
+          <div
+            class="acc-body"
+            id="body-${a.id}"
+          >
+
+            <p>
+              ${a.desc}
+            </p>
+
           </div>
 
-        `
-      )
-      .join("");
+        </div>
+
+      `
+    ).join("");
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    REPORTS
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 const REPORTS = [
 
@@ -2333,10 +1783,6 @@ const REPORTS = [
 ];
 
 
-/* =========================================================
-   BUILD REPORTS
-   ========================================================= */
-
 function buildReports() {
 
   const list =
@@ -2344,129 +1790,111 @@ function buildReports() {
       "reports-list"
     );
 
-
   if (!list) {
     return;
   }
 
-
   list.innerHTML =
-    REPORTS
+    REPORTS.map(
+      r => `
 
-      .map(
-        r => `
+        <div class="acc-item">
 
-          <div class="acc-item">
+          <button
+            class="acc-trigger"
+            onclick="toggleAcc('${r.id}')"
+          >
 
-            <button
-              class="acc-trigger"
-              onclick="toggleAcc('${r.id}')"
-            >
+            <span class="acc-sev-icon">
+              📋
+            </span>
 
-              <span
-                class="acc-sev-icon"
-              >
-                📋
-              </span>
+            <div class="acc-meta">
 
-
-              <div class="acc-meta">
-
-                <div class="acc-title">
-                  ${r.title}
-                </div>
-
-
-                <div
-                  class="acc-sub"
-                  style="margin-top:3px"
-                >
-                  ${r.summary}
-                </div>
-
+              <div class="acc-title">
+                ${r.title}
               </div>
-
-
-              <span
-                class="acc-chevron"
-                id="chev-${r.id}"
-              >
-                ▾
-              </span>
-
-            </button>
-
-
-            <div
-              class="acc-body"
-              id="body-${r.id}"
-            >
-
-              <div class="acc-recs">
-
-                <div
-                  class="acc-recs-title"
-                >
-                  ✅ Key Findings
-                </div>
-
-
-                <ul>
-
-                  ${
-                    r.details
-                      .map(
-                        d =>
-                          `<li>${d}</li>`
-                      )
-                      .join("")
-                  }
-
-                </ul>
-
-              </div>
-
 
               <div
-                class="acc-recs"
-                style="margin-top:10px"
+                class="acc-sub"
+                style="margin-top:3px"
               >
-
-                <div
-                  class="acc-recs-title"
-                >
-                  💡 Recommendations
-                </div>
-
-
-                <ul>
-
-                  ${
-                    r.recs
-                      .map(
-                        item =>
-                          `<li>${item}</li>`
-                      )
-                      .join("")
-                  }
-
-                </ul>
-
+                ${r.summary}
               </div>
+
+            </div>
+
+            <span
+              class="acc-chevron"
+              id="chev-${r.id}"
+            >
+              ▾
+            </span>
+
+          </button>
+
+          <div
+            class="acc-body"
+            id="body-${r.id}"
+          >
+
+            <div class="acc-recs">
+
+              <div class="acc-recs-title">
+                ✅ Key Findings
+              </div>
+
+              <ul>
+
+                ${
+                  r.details
+                    .map(
+                      d =>
+                        `<li>${d}</li>`
+                    )
+                    .join("")
+                }
+
+              </ul>
+
+            </div>
+
+            <div
+              class="acc-recs"
+              style="margin-top:10px"
+            >
+
+              <div class="acc-recs-title">
+                💡 Recommendations
+              </div>
+
+              <ul>
+
+                ${
+                  r.recs
+                    .map(
+                      item =>
+                        `<li>${item}</li>`
+                    )
+                    .join("")
+                }
+
+              </ul>
 
             </div>
 
           </div>
 
-        `
-      )
-      .join("");
+        </div>
+
+      `
+    ).join("");
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    ACCORDION
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 function toggleAcc(
   id
@@ -2477,23 +1905,19 @@ function toggleAcc(
       "body-" + id
     );
 
-
   const chev =
     document.getElementById(
       "chev-" + id
     );
 
-
   if (!body) {
     return;
   }
-
 
   const open =
     body.classList.toggle(
       "open"
     );
-
 
   if (chev) {
 
@@ -2505,21 +1929,19 @@ function toggleAcc(
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    LOCATION
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 function clearLocation() {
 
   selectedLocation =
     "";
 
-
   const pill =
     document.getElementById(
       "loc-pill"
     );
-
 
   if (pill) {
 
@@ -2527,7 +1949,6 @@ function clearLocation() {
       "hidden"
     );
   }
-
 
   onFilterChange();
 }
@@ -2540,25 +1961,21 @@ function setLocation(
   selectedLocation =
     loc;
 
-
   const label =
     document.getElementById(
       "loc-label"
     );
-
 
   const pill =
     document.getElementById(
       "loc-pill"
     );
 
-
   if (label) {
 
     label.textContent =
       loc;
   }
-
 
   if (pill) {
 
@@ -2567,19 +1984,17 @@ function setLocation(
     );
   }
 
-
   showToast(
     `Filter Applied: ${loc}`
   );
-
 
   onFilterChange();
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    TOAST
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 function showToast(
   msg
@@ -2590,25 +2005,20 @@ function showToast(
       "toast"
     );
 
-
   if (!t) {
     return;
   }
 
-
   t.textContent =
     msg;
-
 
   t.classList.remove(
     "hidden"
   );
 
-
   clearTimeout(
     toastTimer
   );
-
 
   toastTimer =
     setTimeout(
@@ -2621,9 +2031,9 @@ function showToast(
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    TABS
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 function switchTab(
   name,
@@ -2641,7 +2051,6 @@ function switchTab(
         )
     );
 
-
   document
     .querySelectorAll(
       ".tab"
@@ -2653,12 +2062,10 @@ function switchTab(
         )
     );
 
-
   const panel =
     document.getElementById(
       "tab-" + name
     );
-
 
   if (panel) {
 
@@ -2667,14 +2074,12 @@ function switchTab(
     );
   }
 
-
   if (btn) {
 
     btn.classList.add(
       "active"
     );
   }
-
 
   if (
     name ===
@@ -2683,7 +2088,6 @@ function switchTab(
 
     buildHeatmap();
   }
-
 
   if (
     name ===
@@ -2697,9 +2101,9 @@ function switchTab(
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    AUTH
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 const USERS = {
 
@@ -2722,22 +2126,20 @@ function login() {
       .getElementById(
         "username"
       )
-      ?.value
+      .value
       .trim();
-
 
   const password =
     document
       .getElementById(
         "password"
-      )?.value;
-
+      )
+      .value;
 
   const err =
     document.getElementById(
       "login-error"
     );
-
 
   if (
     USERS[username] &&
@@ -2752,12 +2154,10 @@ function login() {
       );
     }
 
-
     const chip =
       document.getElementById(
         "user-chip"
       );
-
 
     if (chip) {
 
@@ -2766,39 +2166,27 @@ function login() {
           .toUpperCase();
     }
 
-
-    const loginPage =
-      document.getElementById(
+    document
+      .getElementById(
         "login-page"
+      )
+      .classList.remove(
+        "active"
       );
 
-
-    const dashboardPage =
-      document.getElementById(
+    document
+      .getElementById(
         "dashboard-page"
-      );
-
-
-    if (loginPage) {
-
-      loginPage.classList.remove(
+      )
+      .classList.add(
         "active"
       );
-    }
-
-
-    if (dashboardPage) {
-
-      dashboardPage.classList.add(
-        "active"
-      );
-    }
-
 
     initDashboard();
 
+  }
 
-  } else {
+  else {
 
     if (err) {
 
@@ -2806,13 +2194,10 @@ function login() {
         "hidden"
       );
     }
+
   }
 }
 
-
-/* =========================================================
-   LOGOUT
-   ========================================================= */
 
 function logout() {
 
@@ -2821,12 +2206,10 @@ function logout() {
       "dashboard-page"
     );
 
-
   const loginPage =
     document.getElementById(
       "login-page"
     );
-
 
   if (dashboard) {
 
@@ -2835,7 +2218,6 @@ function logout() {
     );
   }
 
-
   if (loginPage) {
 
     loginPage.classList.add(
@@ -2843,36 +2225,31 @@ function logout() {
     );
   }
 
-
   const username =
     document.getElementById(
       "username"
     );
-
 
   const password =
     document.getElementById(
       "password"
     );
 
-
   if (username) {
     username.value = "";
   }
-
 
   if (password) {
     password.value = "";
   }
 
-
   destroyCharts();
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    CLOCK
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 setInterval(
   () => {
@@ -2880,21 +2257,18 @@ setInterval(
     const n =
       new Date();
 
-
     const pad =
-      value =>
-        String(value)
+      v =>
+        String(v)
           .padStart(
             2,
             "0"
           );
 
-
     const clock =
       document.getElementById(
         "clock"
       );
-
 
     if (clock) {
 
@@ -2902,6 +2276,7 @@ setInterval(
         `${pad(n.getHours())}:` +
         `${pad(n.getMinutes())}:` +
         `${pad(n.getSeconds())}`;
+
     }
 
   },
@@ -2909,40 +2284,43 @@ setInterval(
 );
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    DESTROY CHARTS
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 function destroyCharts() {
 
-  if (lineChart) {
+  [
+    lineChart,
+    barChart,
+    trendChart
+  ].forEach(
+    chart => {
 
-    lineChart.destroy();
+      if (chart) {
 
-    lineChart = null;
-  }
+        chart.destroy();
+      }
 
+    }
+  );
 
-  if (barChart) {
+  lineChart =
+    null;
 
-    barChart.destroy();
+  barChart =
+    null;
 
-    barChart = null;
-  }
-
-
-  if (trendChart) {
-
-    trendChart.destroy();
-
-    trendChart = null;
-  }
+  trendChart =
+    null;
 }
 
 
-/* =========================================================
-   ENSURE PACK SELECTOR
-   ========================================================= */
+/* ═══════════════════════════════════════════
+   PACK SELECTOR
+   PACK 1–8 ONLY
+   NO "ALL PACKS"
+═══════════════════════════════════════════ */
 
 function ensurePackSelectorOptions() {
 
@@ -2951,46 +2329,23 @@ function ensurePackSelectorOptions() {
       "sel-pack"
     );
 
-
   if (!selector) {
     return;
   }
 
-
   const currentValue =
     selector.value;
 
+  /*
+     Completely rebuild selector.
+
+     This guarantees that an old
+     "All Packs" option from the HTML
+     is removed.
+  */
 
   selector.innerHTML =
     "";
-
-
-  /*
-    ALL PACKS
-  */
-
-  const allOption =
-    document.createElement(
-      "option"
-    );
-
-
-  allOption.value =
-    "All Packs";
-
-
-  allOption.textContent =
-    "All Packs";
-
-
-  selector.appendChild(
-    allOption
-  );
-
-
-  /*
-    PACK 1-8
-  */
 
   PACKS.forEach(
     pack => {
@@ -3000,32 +2355,21 @@ function ensurePackSelectorOptions() {
           "option"
         );
 
-
       option.value =
         pack;
-
 
       option.textContent =
         pack;
 
-
       selector.appendChild(
         option
       );
+
     }
   );
 
-
-  /*
-    Restore previous
-    selection if valid.
-  */
-
   if (
-    [
-      "All Packs",
-      ...PACKS
-    ].includes(
+    PACKS.includes(
       currentValue
     )
   ) {
@@ -3033,40 +2377,54 @@ function ensurePackSelectorOptions() {
     selector.value =
       currentValue;
 
-  } else {
-
-    selector.value =
-      "All Packs";
   }
 
+  else {
+
+    selector.value =
+      "Pack 1";
+  }
+
+  /*
+     IMPORTANT:
+
+     Selector changes ONLY
+     the Cell Voltage Heat Map.
+  */
 
   selector.onchange =
     onFilterChange;
 }
 
 
-/* =========================================================
-   INITIALIZE DASHBOARD
-   ========================================================= */
+/* ═══════════════════════════════════════════
+   INITIALIZATION
+═══════════════════════════════════════════ */
 
 async function initDashboard() {
 
-  ensurePackSelectorOptions();
-
-
   /*
-    Reset pack data when
-    dashboard starts.
+     Setup Pack 1–8 selector.
   */
 
-  PACK_DATA = {};
+  ensurePackSelectorOptions();
 
+  /*
+     Get overall BMS data.
+  */
 
   await getBMSData();
 
+  /*
+     Get cell data from all
+     eight Supabase tables.
+  */
 
   await getAllPackData();
 
+  /*
+     Build remaining sections.
+  */
 
   buildHeatmap();
 
@@ -3076,9 +2434,9 @@ async function initDashboard() {
 }
 
 
-/* =========================================================
+/* ═══════════════════════════════════════════
    LIVE UPDATE
-   ========================================================= */
+═══════════════════════════════════════════ */
 
 function startLiveUpdates() {
 
@@ -3089,14 +2447,6 @@ function startLiveUpdates() {
     );
   }
 
-
-  /*
-    Update every 5 seconds.
-
-    This does NOT reload the page.
-    It only refreshes database data.
-  */
-
   refreshTimer =
     setInterval(
       async () => {
@@ -3105,30 +2455,39 @@ function startLiveUpdates() {
 
         await getAllPackData();
 
+        /*
+           No page flashing.
+
+           Existing dashboard UI
+           remains visible.
+
+           Bar chart stays All 8 Packs.
+
+           Heat map stays on whichever
+           Pack is currently selected.
+        */
+
       },
       5000
     );
 }
 
 
-/* =========================================================
-   LOGIN ENTER KEY
-   ========================================================= */
+/* ═══════════════════════════════════════════
+   ENTER KEY LOGIN
+═══════════════════════════════════════════ */
 
 document.addEventListener(
   "keydown",
-  event => {
+  e => {
 
     if (
-      event.key ===
-      "Enter" &&
-
+      e.key === "Enter" &&
       document
         .getElementById(
           "login-page"
         )
-        ?.classList
-        .contains(
+        ?.classList.contains(
           "active"
         )
     ) {
@@ -3140,13 +2499,12 @@ document.addEventListener(
 );
 
 
-/* =========================================================
-   START LIVE UPDATES AFTER LOGIN
-   ========================================================= */
+/* ═══════════════════════════════════════════
+   START LIVE UPDATES AFTER DASHBOARD LOAD
+═══════════════════════════════════════════ */
 
 const originalInitDashboard =
   initDashboard;
-
 
 initDashboard =
   async function () {
