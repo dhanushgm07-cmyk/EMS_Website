@@ -1636,9 +1636,9 @@ return (
 }
 
 return (
-${Math.floor(
-      mins / 60
-    )}h ago
+  `${Math.floor(
+    mins / 60
+  )}h ago`
 );
 }
 
