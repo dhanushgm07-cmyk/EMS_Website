@@ -760,46 +760,37 @@ function buildLineChart() {
 
 
 /* ═══════════════════════════════════════════
-   BATTERY VOLTAGE & SOC
-   ALWAYS ALL 8 PACKS
+   BAR CHART — 8 PACKS
 ═══════════════════════════════════════════ */
 
 function buildBarChart() {
 
   const ctx =
-    document.getElementById(
-      "barChart"
-    );
+    document.getElementById("barChart");
 
-  if (!ctx) {
-    return;
-  }
+  if (!ctx) return;
 
   if (barChart) {
-
     barChart.destroy();
-
-    barChart = null;
   }
 
-  /*
-     ALWAYS show all 8 packs.
+  const selected = getSelectedPack();
 
-     The heat-map selector has absolutely
-     NO effect on this chart.
+  /*
+     All Packs = show all 8 packs.
+     Individual Pack = show only that pack.
   */
 
   const packsToShow =
-    PACKS.filter(
-      pack =>
-        PACK_DATA[pack]
-    );
+    selected === "All Packs"
+      ? PACKS.filter(
+          pack => PACK_DATA[pack]
+        )
+      : PACK_DATA[selected]
+      ? [selected]
+      : [];
 
-  if (
-    !packsToShow.length
-  ) {
-    return;
-  }
+  if (!packsToShow.length) return;
 
   const labels =
     packsToShow;
@@ -808,8 +799,7 @@ function buildBarChart() {
     packsToShow.map(
       pack =>
         Number(
-          PACK_DATA[pack]
-            ?.voltage || 0
+          PACK_DATA[pack]?.voltage || 0
         )
     );
 
@@ -817,31 +807,37 @@ function buildBarChart() {
     packsToShow.map(
       pack =>
         Number(
-          PACK_DATA[pack]
-            ?.soc || 0
+          PACK_DATA[pack]?.soc || 0
         )
     );
 
   const voltageColors = [
 
     "#FF924C",
+
     "#A7B89C",
+
     "#E0A25B",
+
     "#D75B5B",
+
     "#E57A2A",
+
     "#3FB950",
+
     "#6B8E23",
+
     "#8A6FDF"
 
   ];
+
 
   barChart =
     new Chart(
       ctx,
       {
 
-        type:
-          "bar",
+        type: "bar",
 
         data: {
 
@@ -851,7 +847,6 @@ function buildBarChart() {
           datasets: [
 
             {
-
               label:
                 "Voltage (V)",
 
@@ -862,9 +857,7 @@ function buildBarChart() {
                 packsToShow.map(
                   pack =>
                     voltageColors[
-                      PACKS.indexOf(
-                        pack
-                      )
+                      PACKS.indexOf(pack)
                     ]
                 ),
 
@@ -873,11 +866,10 @@ function buildBarChart() {
 
               yAxisID:
                 "y"
-
             },
 
-            {
 
+            {
               label:
                 "SOC (%)",
 
@@ -892,11 +884,12 @@ function buildBarChart() {
 
               yAxisID:
                 "y1"
-
             }
 
           ]
+
         },
+
 
         options: {
 
@@ -904,6 +897,7 @@ function buildBarChart() {
 
           aspectRatio:
             2,
+
 
           plugins: {
 
@@ -915,7 +909,9 @@ function buildBarChart() {
                 true,
 
               text:
-                "Battery Voltage & Estimated SOC — All Packs",
+                selected === "All Packs"
+                  ? "Battery Voltage & Estimated SOC — All Packs"
+                  : `Battery Voltage & Estimated SOC — ${selected}`,
 
               font: {
 
@@ -927,14 +923,22 @@ function buildBarChart() {
 
                 weight:
                   "600"
+
               },
 
               color:
                 "#4A4A4A"
+
             }
+
           },
 
+
           scales: {
+
+            /* ═══════════════════════════════
+               X AXIS
+            ═══════════════════════════════ */
 
             x: {
 
@@ -942,6 +946,7 @@ function buildBarChart() {
 
                 color:
                   "#E0E0E0"
+
               },
 
               ticks: {
@@ -953,74 +958,130 @@ function buildBarChart() {
 
                   size:
                     11
+
                 },
 
                 color:
                   "#6B6B6B"
+
               }
+
             },
+
+
+            /* ═══════════════════════════════
+               LEFT AXIS — VOLTAGE
+               
+               FIXED:
+               0 V → 60 V
+            ═══════════════════════════════ */
 
             y: {
-
-              grid: {
-
-                color:
-                  "#E0E0E0"
-              },
-
-              ticks: {
-
-                font: {
-
-                  family:
-                    "Inter",
-
-                  size:
-                    11
-                },
-
-                color:
-                  "#6B6B6B"
-              },
-
-              position:
-                "left",
-
-              beginAtZero:
-                false
-            },
-
-            y1: {
-
-              grid: {
-
-                display:
-                  false
-              },
-
-              ticks: {
-
-                font: {
-
-                  family:
-                    "Inter",
-
-                  size:
-                    11
-                },
-
-                color:
-                  "#6B6B6B"
-              },
-
-              position:
-                "right",
 
               min:
                 0,
 
               max:
-                100
+                60,
+
+              beginAtZero:
+                true,
+
+              grid: {
+
+                color:
+                  "#E0E0E0"
+
+              },
+
+              ticks: {
+
+                stepSize:
+                  10,
+
+                font: {
+
+                  family:
+                    "Inter",
+
+                  size:
+                    11
+
+                },
+
+                color:
+                  "#6B6B6B",
+
+                callback:
+                  function(value) {
+
+                    return value + " V";
+
+                  }
+
+              },
+
+              position:
+                "left"
+
+            },
+
+
+            /* ═══════════════════════════════
+               RIGHT AXIS — SOC
+               
+               FIXED:
+               0% → 100%
+            ═══════════════════════════════ */
+
+            y1: {
+
+              min:
+                0,
+
+              max:
+                100,
+
+              beginAtZero:
+                true,
+
+              grid: {
+
+                display:
+                  false
+
+              },
+
+              ticks: {
+
+                stepSize:
+                  20,
+
+                font: {
+
+                  family:
+                    "Inter",
+
+                  size:
+                    11
+
+                },
+
+                color:
+                  "#6B6B6B",
+
+                callback:
+                  function(value) {
+
+                    return value + " %";
+
+                  }
+
+              },
+
+              position:
+                "right"
+
             }
 
           }
@@ -1029,6 +1090,7 @@ function buildBarChart() {
 
       }
     );
+
 }
 
 
