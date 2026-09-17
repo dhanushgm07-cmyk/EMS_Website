@@ -1191,7 +1191,7 @@ function buildHeatmap() {
        Sodium-ion thresholds:
 
        Alert:
-       < 1.5V or > 3.5V
+       < 1.8V or > 3.3V
 
        Caution:
        1.5–1.7V
@@ -1202,8 +1202,8 @@ function buildHeatmap() {
     */
 
     if (
-      v < 1.5 ||
-      v > 3.5
+      v < 2.0 ||
+      v > 3.3
     ) {
 
       status =
