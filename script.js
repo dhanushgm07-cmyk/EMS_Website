@@ -1202,8 +1202,8 @@ function buildHeatmap() {
     */
 
     if (
-      v < 2.0 ||
-      v > 3.3
+      v < 1.7 ||
+      v > 3.5
     ) {
 
       status =
@@ -1212,8 +1212,8 @@ function buildHeatmap() {
     }
 
     else if (
-      v < 1.7 ||
-      v > 3.4
+      v < 2.0 ||
+      v > 3.3
     ) {
 
       status =
