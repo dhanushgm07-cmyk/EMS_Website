@@ -17,7 +17,7 @@ const db = supabase.createClient(
 
 /* ═══════════════════════════════════════════
    PACK CONFIGURATION
-═══════════════════════════════════════════ */
+══════════════════════════════════════════ */
 
 const PACKS = [
   "Pack 1",
@@ -1644,6 +1644,152 @@ function fmtTime(
 }
 
 
+async function getAlertHistory() {
+
+  const list = document.getElementById("alerts-list");
+  const badge = document.getElementById("crit-badge");
+
+  if (!list) return;
+
+  const { data, error } = await db
+    .from("alert_history")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error("ALERT HISTORY ERROR:", error);
+
+    list.innerHTML = `
+      <div style="padding:20px">
+        Unable to load alert history
+      </div>
+    `;
+
+    return;
+  }
+
+  if (!data || data.length === 0) {
+
+    if (badge) {
+      badge.textContent = "0 Critical";
+    }
+
+    list.innerHTML = `
+      <div style="padding:20px">
+        No battery alerts
+      </div>
+    `;
+
+    return;
+  }
+
+  const criticalCount = data.filter(
+    alert => alert.severity === "critical"
+  ).length;
+
+  if (badge) {
+    badge.textContent = `${criticalCount} Critical`;
+  }
+
+  list.innerHTML = data.map((alert, index) => {
+
+    const id = `history-alert-${index}`;
+
+    const created = alert.created_at
+      ? new Date(alert.created_at)
+      : null;
+
+    const timeText =
+      created && !Number.isNaN(created.getTime())
+        ? created.toLocaleString()
+        : "--";
+
+    const severity =
+      SEV_ICON[alert.severity]
+        ? alert.severity
+        : "info";
+
+    return `
+
+      <div class="acc-item">
+
+        <button
+          class="acc-trigger"
+          onclick="toggleAcc('${id}')"
+        >
+
+          <span class="acc-sev-icon">
+            ${SEV_ICON[severity]}
+          </span>
+
+          <div class="acc-meta">
+
+            <div class="acc-meta-row">
+
+              <span class="acc-title">
+                ${alert.alert_type || "Battery Alert"}
+              </span>
+
+              <span class="sev-badge ${SEV_CLASS[severity]}">
+                ${SEV_LABEL[severity]}
+              </span>
+
+            </div>
+
+            <div class="acc-sub">
+              ${alert.pack || "--"}${alert.cell ? ` — ${alert.cell}` : ""}
+            </div>
+
+            <div class="acc-sub">
+              ${timeText}
+            </div>
+
+          </div>
+
+          <span
+            class="acc-chevron"
+            id="chev-${id}"
+          >
+            ▾
+          </span>
+
+        </button>
+
+        <div
+          class="acc-body"
+          id="body-${id}"
+        >
+
+          <p>
+            ${alert.description || "No description available."}
+          </p>
+
+          ${
+            alert.voltage !== null &&
+            alert.voltage !== undefined &&
+            alert.voltage !== ""
+              ? `
+                <p>
+                  Voltage:
+                  <strong>
+                    ${(Number(alert.voltage) / 1000).toFixed(3)} V
+                  </strong>
+                </p>
+              `
+              : ""
+          }
+
+        </div>
+
+      </div>
+
+    `;
+
+  }).join("");
+}
+
+
 function buildAlerts() {
 
   const list = document.getElementById("alerts-list");
@@ -1790,7 +1936,6 @@ function buildAlerts() {
   `).join("");
 
 }
-
 
 /* ═══════════════════════════════════════════
    REPORTS
@@ -2479,7 +2624,7 @@ async function initDashboard() {
 
   buildHeatmap();
 
-  buildAlerts();
+  await getAlertHistory();
 
   buildReports();
 }
@@ -2505,6 +2650,8 @@ function startLiveUpdates() {
         await getBMSData();
 
         await getAllPackData();
+
+        await getAlertHistory();
 
         /*
            No page flashing.
@@ -2544,6 +2691,7 @@ document.addEventListener(
     ) {
 
       login();
+
     }
 
   }
