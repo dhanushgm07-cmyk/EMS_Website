@@ -1646,98 +1646,149 @@ function fmtTime(
 
 function buildAlerts() {
 
-  const list =
-    document.getElementById(
-      "alerts-list"
-    );
+  const list = document.getElementById("alerts-list");
+  const badge = document.getElementById("crit-badge");
 
-  if (!list) {
+  if (!list) return;
+
+  const alerts = [];
+
+  PACKS.forEach(pack => {
+
+    const data = PACK_DATA[pack];
+
+    if (!data || !data.cells) return;
+
+    const cells = data.cells
+      .map(Number)
+      .filter(v => Number.isFinite(v) && v > 0);
+
+    if (!cells.length) return;
+
+    const max = Math.max(...cells);
+    const min = Math.min(...cells);
+    const difference = max - min;
+
+    if (min < 2.0) {
+
+      alerts.push({
+        id: pack.replace(" ", "-") + "-low",
+        sev: "critical",
+        title: "Low Cell Voltage",
+        equip: pack,
+        time: 0,
+        desc: `Minimum cell voltage is ${min.toFixed(3)} V.`
+      });
+
+    }
+
+    if (max > 3.5) {
+
+      alerts.push({
+        id: pack.replace(" ", "-") + "-high",
+        sev: "critical",
+        title: "High Cell Voltage",
+        equip: pack,
+        time: 0,
+        desc: `Maximum cell voltage is ${max.toFixed(3)} V.`
+      });
+
+    }
+
+    if (difference > 0.10) {
+
+      alerts.push({
+        id: pack.replace(" ", "-") + "-imbalance",
+        sev: "warning",
+        title: "Cell Voltage Imbalance",
+        equip: pack,
+        time: 0,
+        desc: `Cell voltage difference is ${(difference * 1000).toFixed(0)} mV.`
+      });
+
+    }
+
+  });
+
+  const criticalCount =
+    alerts.filter(a => a.sev === "critical").length;
+
+  if (badge) {
+    badge.textContent = `${criticalCount} Critical`;
+  }
+
+  if (!alerts.length) {
+
+    list.innerHTML = `
+      <div style="padding:20px">
+        No battery alerts
+      </div>
+    `;
+
     return;
   }
 
-  const critCount =
-    ALERTS.filter(
-      a =>
-        a.sev ===
-        "critical"
-    ).length;
+  list.innerHTML = alerts.map(a => `
 
-  const badge =
-    document.getElementById(
-      "crit-badge"
-    );
+    <div class="acc-item">
 
-  if (badge) {
+      <button
+        class="acc-trigger"
+        onclick="toggleAcc('${a.id}')"
+      >
 
-    badge.textContent =
-      `${critCount} Critical`;
-  }
+        <span class="acc-sev-icon">
+          ${SEV_ICON[a.sev]}
+        </span>
 
-  list.innerHTML =
-    ALERTS.map(
-      a => `
+        <div class="acc-meta">
 
-        <div class="acc-item">
+          <div class="acc-meta-row">
 
-          <button
-            class="acc-trigger"
-            onclick="toggleAcc('${a.id}')"
-          >
-
-            <span class="acc-sev-icon">
-              ${SEV_ICON[a.sev]}
+            <span class="acc-title">
+              ${a.title}
             </span>
 
-            <div class="acc-meta">
-
-              <div class="acc-meta-row">
-
-                <span class="acc-title">
-                  ${a.title}
-                </span>
-
-                <span
-                  class="sev-badge ${SEV_CLASS[a.sev]}"
-                >
-                  ${SEV_LABEL[a.sev]}
-                </span>
-
-              </div>
-
-              <div class="acc-sub">
-                ${a.equip}
-              </div>
-
-              <div class="acc-sub">
-                ${fmtTime(a.time)}
-              </div>
-
-            </div>
-
-            <span
-              class="acc-chevron"
-              id="chev-${a.id}"
-            >
-              ▾
+            <span class="sev-badge ${SEV_CLASS[a.sev]}">
+              ${SEV_LABEL[a.sev]}
             </span>
 
-          </button>
+          </div>
 
-          <div
-            class="acc-body"
-            id="body-${a.id}"
-          >
+          <div class="acc-sub">
+            ${a.equip}
+          </div>
 
-            <p>
-              ${a.desc}
-            </p>
-
+          <div class="acc-sub">
+            Live
           </div>
 
         </div>
 
-      `
-    ).join("");
+        <span
+          class="acc-chevron"
+          id="chev-${a.id}"
+        >
+          ▾
+        </span>
+
+      </button>
+
+      <div
+        class="acc-body"
+        id="body-${a.id}"
+      >
+
+        <p>
+          ${a.desc}
+        </p>
+
+      </div>
+
+    </div>
+
+  `).join("");
+
 }
 
 
