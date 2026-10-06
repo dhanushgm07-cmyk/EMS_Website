@@ -1981,110 +1981,461 @@ const REPORTS = [
 
 function buildReports() {
 
-  const list =
-    document.getElementById(
-      "reports-list"
+  const list = document.getElementById("reports-list");
+
+  if (!list) return;
+
+  const latest = BMS_DATA[0];
+
+  const packEntries = PACKS
+    .map(pack => ({
+      pack,
+      data: PACK_DATA[pack]
+    }))
+    .filter(item =>
+      item.data &&
+      Array.isArray(item.data.cells)
     );
 
-  if (!list) {
-    return;
+  let lowestCell = null;
+  let highestCell = null;
+  let largestImbalance = null;
+
+  let totalCellVoltage = 0;
+  let totalValidCells = 0;
+
+  let criticalLow = 0;
+  let criticalHigh = 0;
+  let imbalanceAlerts = 0;
+
+  /* ===============================
+     ANALYSE ALL 8 PACKS
+  =============================== */
+
+  packEntries.forEach(({ pack, data }) => {
+
+    const cells = data.cells
+      .map(Number)
+      .filter(v =>
+        Number.isFinite(v) &&
+        v > 0
+      );
+
+    if (!cells.length) return;
+
+    const packMin = Math.min(...cells);
+    const packMax = Math.max(...cells);
+    const imbalance = packMax - packMin;
+
+    if (
+      !largestImbalance ||
+      imbalance > largestImbalance.value
+    ) {
+      largestImbalance = {
+        pack: pack,
+        value: imbalance,
+        min: packMin,
+        max: packMax
+      };
+    }
+
+    if (imbalance > 0.10) {
+      imbalanceAlerts++;
+    }
+
+    cells.forEach((voltage, index) => {
+
+      totalCellVoltage += voltage;
+      totalValidCells++;
+
+      const cellInfo = {
+        pack: pack,
+        cell: index + 1,
+        voltage: voltage
+      };
+
+      if (
+        !lowestCell ||
+        voltage < lowestCell.voltage
+      ) {
+        lowestCell = cellInfo;
+      }
+
+      if (
+        !highestCell ||
+        voltage > highestCell.voltage
+      ) {
+        highestCell = cellInfo;
+      }
+
+      if (voltage < 2.0) {
+        criticalLow++;
+      }
+
+      if (voltage > 3.5) {
+        criticalHigh++;
+      }
+
+    });
+
+  });
+
+
+  /* ===============================
+     CALCULATIONS
+  =============================== */
+
+  const averageCellVoltage =
+    totalValidCells > 0
+      ? totalCellVoltage / totalValidCells
+      : 0;
+
+
+  const packVoltages = packEntries
+    .map(item => Number(item.data.voltage))
+    .filter(v =>
+      Number.isFinite(v) &&
+      v > 0
+    );
+
+
+  const averagePackVoltage =
+    packVoltages.length > 0
+      ? packVoltages.reduce(
+          (a, b) => a + b,
+          0
+        ) / packVoltages.length
+      : 0;
+
+
+  const criticalCount =
+    criticalLow +
+    criticalHigh;
+
+
+  /* ===============================
+     SYSTEM STATUS
+  =============================== */
+
+  let systemStatus = "NORMAL";
+  let statusClass = "sev-info";
+
+  if (criticalCount > 0) {
+
+    systemStatus = "CRITICAL";
+    statusClass = "sev-critical";
+
+  }
+  else if (imbalanceAlerts > 0) {
+
+    systemStatus = "WARNING";
+    statusClass = "sev-warning";
+
   }
 
-  list.innerHTML =
-    REPORTS.map(
-      r => `
 
-        <div class="acc-item">
+  /* ===============================
+     RECOMMENDATIONS
+  =============================== */
 
-          <button
-            class="acc-trigger"
-            onclick="toggleAcc('${r.id}')"
-          >
+  const recommendations = [];
 
-            <span class="acc-sev-icon">
-              📋
+
+  if (criticalLow > 0) {
+
+    recommendations.push(
+      `Inspect ${criticalLow} cell(s) below 2.0 V and verify cell condition before continued operation.`
+    );
+
+  }
+
+
+  if (criticalHigh > 0) {
+
+    recommendations.push(
+      `Inspect ${criticalHigh} cell(s) above 3.5 V and verify charging limits.`
+    );
+
+  }
+
+
+  if (imbalanceAlerts > 0) {
+
+    recommendations.push(
+      `${imbalanceAlerts} pack(s) have more than 100 mV cell imbalance. Investigate balancing performance.`
+    );
+
+  }
+
+
+  if (!recommendations.length) {
+
+    recommendations.push(
+      "No abnormal cell-voltage condition detected."
+    );
+
+    recommendations.push(
+      "Continue monitoring cell voltage, pack voltage and temperature."
+    );
+
+  }
+
+
+  /* ===============================
+     BMS DATA
+  =============================== */
+
+  const timestamp =
+    latest && latest.created_at
+      ? new Date(
+          latest.created_at
+        ).toLocaleString()
+      : "Unavailable";
+
+
+  const bmsVoltage =
+    latest &&
+    Number.isFinite(Number(latest.Voltage))
+      ? Number(latest.Voltage).toFixed(1)
+      : "—";
+
+
+  const bmsCurrent =
+    latest &&
+    Number.isFinite(Number(latest.Current))
+      ? Number(latest.Current).toFixed(1)
+      : "—";
+
+
+  const bmsSoc =
+    latest &&
+    Number.isFinite(Number(latest.Soc))
+      ? Number(latest.Soc).toFixed(0)
+      : "—";
+
+
+  const bmsTemp =
+    latest &&
+    Number.isFinite(Number(latest.Temperature))
+      ? Number(latest.Temperature).toFixed(1)
+      : "—";
+
+
+  /* ===============================
+     REPORT UI
+  =============================== */
+
+  list.innerHTML = `
+
+    <div class="acc-item">
+
+      <button
+        class="acc-trigger"
+        onclick="toggleAcc('r1')"
+      >
+
+        <span class="acc-sev-icon">
+          📋
+        </span>
+
+        <div class="acc-meta">
+
+          <div class="acc-meta-row">
+
+            <span class="acc-title">
+              Battery Health Summary
             </span>
 
-            <div class="acc-meta">
-
-              <div class="acc-title">
-                ${r.title}
-              </div>
-
-              <div
-                class="acc-sub"
-                style="margin-top:3px"
-              >
-                ${r.summary}
-              </div>
-
-            </div>
-
-            <span
-              class="acc-chevron"
-              id="chev-${r.id}"
-            >
-              ▾
+            <span class="sev-badge ${statusClass}">
+              ${systemStatus}
             </span>
 
-          </button>
+          </div>
 
           <div
-            class="acc-body"
-            id="body-${r.id}"
+            class="acc-sub"
+            style="margin-top:3px"
           >
-
-            <div class="acc-recs">
-
-              <div class="acc-recs-title">
-                ✅ Key Findings
-              </div>
-
-              <ul>
-
-                ${
-                  r.details
-                    .map(
-                      d =>
-                        `<li>${d}</li>`
-                    )
-                    .join("")
-                }
-
-              </ul>
-
-            </div>
-
-            <div
-              class="acc-recs"
-              style="margin-top:10px"
-            >
-
-              <div class="acc-recs-title">
-                💡 Recommendations
-              </div>
-
-              <ul>
-
-                ${
-                  r.recs
-                    .map(
-                      item =>
-                        `<li>${item}</li>`
-                    )
-                    .join("")
-                }
-
-              </ul>
-
-            </div>
-
+            Live analysis of current BMS and 8-pack cell data
           </div>
 
         </div>
 
-      `
-    ).join("");
+        <span
+          class="acc-chevron"
+          id="chev-r1"
+        >
+          ▾
+        </span>
+
+      </button>
+
+
+      <div
+        class="acc-body"
+        id="body-r1"
+      >
+
+
+        <!-- CURRENT SYSTEM DATA -->
+
+        <div class="acc-recs">
+
+          <div class="acc-recs-title">
+            📊 Current System Data
+          </div>
+
+          <ul>
+
+            <li>
+              System voltage:
+              <strong>${bmsVoltage} V</strong>
+            </li>
+
+            <li>
+              System current:
+              <strong>${bmsCurrent} A</strong>
+            </li>
+
+            <li>
+              SOC:
+              <strong>${bmsSoc}%</strong>
+            </li>
+
+            <li>
+              Temperature:
+              <strong>${bmsTemp} °C</strong>
+            </li>
+
+            <li>
+              Battery packs received:
+              <strong>${packEntries.length}/8</strong>
+            </li>
+
+            <li>
+              Valid cell readings:
+              <strong>${totalValidCells}/128</strong>
+            </li>
+
+            <li>
+              Average pack voltage:
+              <strong>${averagePackVoltage.toFixed(2)} V</strong>
+            </li>
+
+            <li>
+              Average cell voltage:
+              <strong>${averageCellVoltage.toFixed(3)} V</strong>
+            </li>
+
+            <li>
+              Latest BMS update:
+              <strong>${timestamp}</strong>
+            </li>
+
+          </ul>
+
+        </div>
+
+
+        <!-- CELL ANALYSIS -->
+
+        <div
+          class="acc-recs"
+          style="margin-top:10px"
+        >
+
+          <div class="acc-recs-title">
+            🔋 Cell Voltage Analysis
+          </div>
+
+          <ul>
+
+            <li>
+              Lowest cell:
+              <strong>
+                ${
+                  lowestCell
+                    ? `${lowestCell.voltage.toFixed(3)} V — ${lowestCell.pack}, Cell ${lowestCell.cell}`
+                    : "—"
+                }
+              </strong>
+            </li>
+
+            <li>
+              Highest cell:
+              <strong>
+                ${
+                  highestCell
+                    ? `${highestCell.voltage.toFixed(3)} V — ${highestCell.pack}, Cell ${highestCell.cell}`
+                    : "—"
+                }
+              </strong>
+            </li>
+
+            <li>
+              Largest pack imbalance:
+              <strong>
+                ${
+                  largestImbalance
+                    ? `${(largestImbalance.value * 1000).toFixed(0)} mV — ${largestImbalance.pack}`
+                    : "—"
+                }
+              </strong>
+            </li>
+
+            <li>
+              Cells below 2.0 V:
+              <strong>
+                ${criticalLow}
+              </strong>
+            </li>
+
+            <li>
+              Cells above 3.5 V:
+              <strong>
+                ${criticalHigh}
+              </strong>
+            </li>
+
+            <li>
+              Packs above 100 mV imbalance:
+              <strong>
+                ${imbalanceAlerts}
+              </strong>
+            </li>
+
+          </ul>
+
+        </div>
+
+
+        <!-- RECOMMENDATIONS -->
+
+        <div
+          class="acc-recs"
+          style="margin-top:10px"
+        >
+
+          <div class="acc-recs-title">
+            💡 Recommendations
+          </div>
+
+          <ul>
+
+            ${recommendations
+              .map(item => `<li>${item}</li>`)
+              .join("")}
+
+          </ul>
+
+        </div>
+
+
+      </div>
+
+    </div>
+
+  `;
 }
 
 
