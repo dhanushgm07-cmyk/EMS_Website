@@ -3263,6 +3263,8 @@ function startLiveUpdates() {
         await getAllPackData();
 
         await getAlertHistory();
+         
+         buildAlerts();
 
         /*
            No page flashing.
