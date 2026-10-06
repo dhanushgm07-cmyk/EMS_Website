@@ -1807,183 +1807,66 @@ function buildAlerts() {
 
     const cells = data.cells
       .map(Number)
-      .filter(v =>
-        Number.isFinite(v) &&
-        v > 0
-      );
+      .filter(v => Number.isFinite(v) && v > 0);
 
     if (!cells.length) return;
 
-
-    /* ===============================
-       FIND CELL INFORMATION
-    =============================== */
-
-    const min = Math.min(...cells);
     const max = Math.max(...cells);
-
-    const minIndex = cells.indexOf(min);
-    const maxIndex = cells.indexOf(max);
-
-    const minCell = minIndex + 1;
-    const maxCell = maxIndex + 1;
-
+    const min = Math.min(...cells);
     const difference = max - min;
 
 
-    /* ===============================
-       CRITICAL LOW CELL
-    =============================== */
+    // LOW CELL VOLTAGE
+    // < 2.0 V = CRITICAL
+    if (min < 2.0) {
 
-    if (min < 1.5) {
-
-      alerts.push({
-
-        id:
-          pack.replace(" ", "-") +
-          "-critical-low",
-
-        sev:
-          "critical",
-
-        title:
-          "Critical Low Cell Voltage",
-
-        equip:
-          `${pack} — Cell ${minCell}`,
-
-        time:
-          0,
-
-        desc:
-          `Cell ${minCell} voltage is ${min.toFixed(3)} V, below the critical 1.5 V threshold. Immediate inspection required.`
-
-      });
-
-    }
-
-    /* ===============================
-       WARNING LOW CELL
-    =============================== */
-
-    else if (min < 2.0) {
+      const cellIndex = data.cells
+        .map(Number)
+        .findIndex(v => Number.isFinite(v) && v === min);
 
       alerts.push({
-
-        id:
-          pack.replace(" ", "-") +
-          "-low",
-
-        sev:
-          "warning",
-
-        title:
-          "Low Cell Voltage",
-
-        equip:
-          `${pack} — Cell ${minCell}`,
-
-        time:
-          0,
-
-        desc:
-          `Cell ${minCell} voltage is ${min.toFixed(3)} V, below the 2.0 V warning threshold.`
-
+        id: pack.replace(" ", "-") + "-low",
+        sev: "critical",
+        title: "Low Cell Voltage",
+        equip: `${pack} — Cell ${cellIndex + 1}`,
+        time: 0,
+        desc: `Cell voltage is ${min.toFixed(3)} V, below the 2.0 V limit.`
       });
 
     }
 
 
-    /* ===============================
-       CRITICAL HIGH CELL
-    =============================== */
-
+    // HIGH CELL VOLTAGE
+    // > 3.5 V = CRITICAL
     if (max > 3.5) {
 
+      const cellIndex = data.cells
+        .map(Number)
+        .findIndex(v => Number.isFinite(v) && v === max);
+
       alerts.push({
-
-        id:
-          pack.replace(" ", "-") +
-          "-high",
-
-        sev:
-          "critical",
-
-        title:
-          "Critical High Cell Voltage",
-
-        equip:
-          `${pack} — Cell ${maxCell}`,
-
-        time:
-          0,
-
-        desc:
-          `Cell ${maxCell} voltage is ${max.toFixed(3)} V, above the 3.5 V critical threshold. Check charging limits immediately.`
-
+        id: pack.replace(" ", "-") + "-high",
+        sev: "critical",
+        title: "High Cell Voltage",
+        equip: `${pack} — Cell ${cellIndex + 1}`,
+        time: 0,
+        desc: `Cell voltage is ${max.toFixed(3)} V, above the 3.5 V limit.`
       });
 
     }
 
 
-    /* ===============================
-       SEVERE IMBALANCE
-    =============================== */
-
-    if (difference >= 0.50) {
+    // CELL VOLTAGE IMBALANCE
+    // > 100 mV = WARNING
+    if (difference > 0.10) {
 
       alerts.push({
-
-        id:
-          pack.replace(" ", "-") +
-          "-severe-imbalance",
-
-        sev:
-          "critical",
-
-        title:
-          "Severe Cell Voltage Imbalance",
-
-        equip:
-          pack,
-
-        time:
-          0,
-
-        desc:
-          `Cell voltage difference is ${(difference * 1000).toFixed(0)} mV (${min.toFixed(3)}–${max.toFixed(3)} V). Inspect affected cells and BMS balancing operation.`
-
-      });
-
-    }
-
-    /* ===============================
-       NORMAL IMBALANCE WARNING
-    =============================== */
-
-    else if (difference > 0.10) {
-
-      alerts.push({
-
-        id:
-          pack.replace(" ", "-") +
-          "-imbalance",
-
-        sev:
-          "warning",
-
-        title:
-          "Cell Voltage Imbalance",
-
-        equip:
-          pack,
-
-        time:
-          0,
-
-        desc:
-          `Cell voltage difference is ${(difference * 1000).toFixed(0)} mV. Investigate balancing performance.`
-
+        id: pack.replace(" ", "-") + "-imbalance",
+        sev: "warning",
+        title: "Cell Voltage Imbalance",
+        equip: pack,
+        time: 0,
+        desc: `Cell voltage difference is ${(difference * 1000).toFixed(0)} mV.`
       });
 
     }
@@ -1991,131 +1874,99 @@ function buildAlerts() {
   });
 
 
-  /* ===============================
-     CRITICAL COUNT
-  =============================== */
-
-  const criticalCount =
-    alerts.filter(
-      a => a.sev === "critical"
-    ).length;
-
-
-  if (badge) {
-
-    badge.textContent =
-      `${criticalCount} Critical`;
-
-  }
-
-
-  /* ===============================
-     NO ALERTS
-  =============================== */
-
+  // NO ACTIVE ALERTS
   if (!alerts.length) {
 
     list.innerHTML = `
-
       <div style="padding:20px">
-
         No battery alerts
-
       </div>
-
     `;
 
-    return;
+    if (badge) {
+      badge.textContent = "0 Critical";
+    }
 
+    return;
   }
 
 
-  /* ===============================
-     DISPLAY ALERTS
-  =============================== */
+  // CRITICAL COUNT
+  const criticalCount = alerts.filter(
+    alert => alert.sev === "critical"
+  ).length;
 
-  list.innerHTML = alerts.map(a => `
-
-    <div class="acc-item">
-
-      <button
-        class="acc-trigger"
-        onclick="toggleAcc('${a.id}')"
-      >
-
-        <span class="acc-sev-icon">
-
-          ${SEV_ICON[a.sev]}
-
-        </span>
+  if (badge) {
+    badge.textContent = `${criticalCount} Critical`;
+  }
 
 
-        <div class="acc-meta">
+  // DISPLAY ALERTS
+  list.innerHTML = alerts.map((alert, index) => {
 
-          <div class="acc-meta-row">
+    const id = `live-alert-${index}`;
 
-            <span class="acc-title">
+    return `
+      <div class="acc-item">
 
-              ${a.title}
+        <button
+          class="acc-trigger"
+          onclick="toggleAcc('${id}')"
+        >
 
-            </span>
+          <span class="acc-sev-icon">
+            ${SEV_ICON[alert.sev]}
+          </span>
 
+          <div class="acc-meta">
 
-            <span
-              class="sev-badge ${SEV_CLASS[a.sev]}"
-            >
+            <div class="acc-meta-row">
 
-              ${SEV_LABEL[a.sev]}
+              <span class="acc-title">
+                ${alert.title}
+              </span>
 
-            </span>
+              <span class="sev-badge ${SEV_CLASS[alert.sev]}">
+                ${SEV_LABEL[alert.sev]}
+              </span>
 
-          </div>
+            </div>
 
+            <div class="acc-sub">
+              ${alert.equip}
+            </div>
 
-          <div class="acc-sub">
-
-            ${a.equip}
-
-          </div>
-
-
-          <div class="acc-sub">
-
-            Live
+            <div class="acc-sub">
+              Live
+            </div>
 
           </div>
+
+          <span
+            class="acc-chevron"
+            id="chev-${id}"
+          >
+            ▾
+          </span>
+
+        </button>
+
+
+        <div
+          class="acc-body"
+          id="body-${id}"
+        >
+
+          <p>
+            ${alert.desc}
+          </p>
 
         </div>
 
-
-        <span
-          class="acc-chevron"
-          id="chev-${a.id}"
-        >
-
-          ▾
-
-        </span>
-
-      </button>
-
-
-      <div
-        class="acc-body"
-        id="body-${a.id}"
-      >
-
-        <p>
-
-          ${a.desc}
-
-        </p>
-
       </div>
+    `;
 
-    </div>
-
-  `).join("");
+  }).join("");
 
 }
 
