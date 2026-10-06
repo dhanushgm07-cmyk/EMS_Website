@@ -2113,25 +2113,74 @@ function buildReports() {
     criticalHigh;
 
 
-  /* ===============================
-     SYSTEM STATUS
-  =============================== */
+/* ===============================
+   SYSTEM STATUS
+=============================== */
 
-  let systemStatus = "NORMAL";
-  let statusClass = "sev-info";
+let systemStatus = "NORMAL";
+let statusClass = "sev-info";
 
-  if (criticalCount > 0) {
+/*
+   Severity levels:
 
-    systemStatus = "CRITICAL";
-    statusClass = "sev-critical";
+   CRITICAL:
+   - Any cell below 1.5 V
+   - Any cell above 3.5 V
+   - Cell imbalance >= 500 mV
 
-  }
-  else if (imbalanceAlerts > 0) {
+   WARNING:
+   - Any cell below 2.0 V
+   - Cell imbalance > 100 mV
 
-    systemStatus = "WARNING";
-    statusClass = "sev-warning";
+   NORMAL:
+   - No abnormal condition
+*/
 
-  }
+const severeLowCells = packEntries.reduce((count, item) => {
+
+  return count + item.data.cells.filter(v =>
+    Number.isFinite(Number(v)) &&
+    Number(v) < 1.5
+  ).length;
+
+}, 0);
+
+
+const severeHighCells = packEntries.reduce((count, item) => {
+
+  return count + item.data.cells.filter(v =>
+    Number.isFinite(Number(v)) &&
+    Number(v) > 3.5
+  ).length;
+
+}, 0);
+
+
+const severeImbalance =
+  largestImbalance &&
+  largestImbalance.value >= 0.50;
+
+
+if (
+  severeLowCells > 0 ||
+  severeHighCells > 0 ||
+  severeImbalance
+) {
+
+  systemStatus = "CRITICAL";
+  statusClass = "sev-critical";
+
+}
+else if (
+  criticalLow > 0 ||
+  criticalHigh > 0 ||
+  imbalanceAlerts > 0
+) {
+
+  systemStatus = "WARNING";
+  statusClass = "sev-warning";
+
+}
 
 
   /* ===============================
