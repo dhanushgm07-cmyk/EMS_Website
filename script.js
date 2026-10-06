@@ -2183,51 +2183,80 @@ else if (
 }
 
 
-  /* ===============================
-     RECOMMENDATIONS
-  =============================== */
+ /* ===============================
+   RECOMMENDATIONS
+=============================== */
 
-  const recommendations = [];
-
-
-  if (criticalLow > 0) {
-
-    recommendations.push(
-      `Inspect ${criticalLow} cell(s) below 2.0 V and verify cell condition before continued operation.`
-    );
-
-  }
+const recommendations = [];
 
 
-  if (criticalHigh > 0) {
+/* CRITICAL LOW VOLTAGE */
 
-    recommendations.push(
-      `Inspect ${criticalHigh} cell(s) above 3.5 V and verify charging limits.`
-    );
+if (severeLowCells > 0) {
 
-  }
+  recommendations.push(
+    `⚠️ CRITICAL: ${severeLowCells} cell(s) are below 1.5 V. Inspect the affected cells immediately and verify cell condition before continued operation.`
+  );
+
+}
+else if (criticalLow > 0) {
+
+  recommendations.push(
+    `⚠️ ${criticalLow} cell(s) are below 2.0 V. Inspect the affected cells and monitor them closely.`
+  );
+
+}
 
 
-  if (imbalanceAlerts > 0) {
+/* CRITICAL HIGH VOLTAGE */
 
-    recommendations.push(
-      `${imbalanceAlerts} pack(s) have more than 100 mV cell imbalance. Investigate balancing performance.`
-    );
+if (severeHighCells > 0) {
 
-  }
+  recommendations.push(
+    `⚠️ CRITICAL: ${severeHighCells} cell(s) are above 3.5 V. Check charging limits and BMS protection immediately.`
+  );
+
+}
+else if (criticalHigh > 0) {
+
+  recommendations.push(
+    `⚠️ ${criticalHigh} cell(s) are above 3.5 V. Verify charging control and cell balancing.`
+  );
+
+}
 
 
-  if (!recommendations.length) {
+/* SEVERE CELL IMBALANCE */
 
-    recommendations.push(
-      "No abnormal cell-voltage condition detected."
-    );
+if (severeImbalance) {
 
-    recommendations.push(
-      "Continue monitoring cell voltage, pack voltage and temperature."
-    );
+  recommendations.push(
+    `⚠️ CRITICAL: Severe cell voltage imbalance detected in ${largestImbalance.pack} (${(largestImbalance.value * 1000).toFixed(0)} mV). Inspect affected cells and BMS balancing operation before continued battery operation.`
+  );
 
-  }
+}
+else if (imbalanceAlerts > 0) {
+
+  recommendations.push(
+    `⚠️ ${imbalanceAlerts} pack(s) have more than 100 mV cell imbalance. Investigate balancing performance.`
+  );
+
+}
+
+
+/* NORMAL */
+
+if (!recommendations.length) {
+
+  recommendations.push(
+    "✅ No abnormal cell-voltage condition detected."
+  );
+
+  recommendations.push(
+    "Continue monitoring cell voltage, pack voltage and temperature."
+  );
+
+}
 
 
   /* ===============================
