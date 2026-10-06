@@ -1807,72 +1807,232 @@ function buildAlerts() {
 
     const cells = data.cells
       .map(Number)
-      .filter(v => Number.isFinite(v) && v > 0);
+      .filter(v =>
+        Number.isFinite(v) &&
+        v > 0
+      );
 
     if (!cells.length) return;
 
-    const max = Math.max(...cells);
+
+    /* ===============================
+       FIND CELL INFORMATION
+    =============================== */
+
     const min = Math.min(...cells);
+    const max = Math.max(...cells);
+
+    const minIndex = cells.indexOf(min);
+    const maxIndex = cells.indexOf(max);
+
+    const minCell = minIndex + 1;
+    const maxCell = maxIndex + 1;
+
     const difference = max - min;
 
-    if (min < 2.0) {
+
+    /* ===============================
+       CRITICAL LOW CELL
+    =============================== */
+
+    if (min < 1.5) {
 
       alerts.push({
-        id: pack.replace(" ", "-") + "-low",
-        sev: "critical",
-        title: "Low Cell Voltage",
-        equip: pack,
-        time: 0,
-        desc: `Minimum cell voltage is ${min.toFixed(3)} V.`
+
+        id:
+          pack.replace(" ", "-") +
+          "-critical-low",
+
+        sev:
+          "critical",
+
+        title:
+          "Critical Low Cell Voltage",
+
+        equip:
+          `${pack} — Cell ${minCell}`,
+
+        time:
+          0,
+
+        desc:
+          `Cell ${minCell} voltage is ${min.toFixed(3)} V, below the critical 1.5 V threshold. Immediate inspection required.`
+
       });
 
     }
+
+    /* ===============================
+       WARNING LOW CELL
+    =============================== */
+
+    else if (min < 2.0) {
+
+      alerts.push({
+
+        id:
+          pack.replace(" ", "-") +
+          "-low",
+
+        sev:
+          "warning",
+
+        title:
+          "Low Cell Voltage",
+
+        equip:
+          `${pack} — Cell ${minCell}`,
+
+        time:
+          0,
+
+        desc:
+          `Cell ${minCell} voltage is ${min.toFixed(3)} V, below the 2.0 V warning threshold.`
+
+      });
+
+    }
+
+
+    /* ===============================
+       CRITICAL HIGH CELL
+    =============================== */
 
     if (max > 3.5) {
 
       alerts.push({
-        id: pack.replace(" ", "-") + "-high",
-        sev: "critical",
-        title: "High Cell Voltage",
-        equip: pack,
-        time: 0,
-        desc: `Maximum cell voltage is ${max.toFixed(3)} V.`
+
+        id:
+          pack.replace(" ", "-") +
+          "-high",
+
+        sev:
+          "critical",
+
+        title:
+          "Critical High Cell Voltage",
+
+        equip:
+          `${pack} — Cell ${maxCell}`,
+
+        time:
+          0,
+
+        desc:
+          `Cell ${maxCell} voltage is ${max.toFixed(3)} V, above the 3.5 V critical threshold. Check charging limits immediately.`
+
       });
 
     }
 
-    if (difference > 0.10) {
+
+    /* ===============================
+       SEVERE IMBALANCE
+    =============================== */
+
+    if (difference >= 0.50) {
 
       alerts.push({
-        id: pack.replace(" ", "-") + "-imbalance",
-        sev: "warning",
-        title: "Cell Voltage Imbalance",
-        equip: pack,
-        time: 0,
-        desc: `Cell voltage difference is ${(difference * 1000).toFixed(0)} mV.`
+
+        id:
+          pack.replace(" ", "-") +
+          "-severe-imbalance",
+
+        sev:
+          "critical",
+
+        title:
+          "Severe Cell Voltage Imbalance",
+
+        equip:
+          pack,
+
+        time:
+          0,
+
+        desc:
+          `Cell voltage difference is ${(difference * 1000).toFixed(0)} mV (${min.toFixed(3)}–${max.toFixed(3)} V). Inspect affected cells and BMS balancing operation.`
+
+      });
+
+    }
+
+    /* ===============================
+       NORMAL IMBALANCE WARNING
+    =============================== */
+
+    else if (difference > 0.10) {
+
+      alerts.push({
+
+        id:
+          pack.replace(" ", "-") +
+          "-imbalance",
+
+        sev:
+          "warning",
+
+        title:
+          "Cell Voltage Imbalance",
+
+        equip:
+          pack,
+
+        time:
+          0,
+
+        desc:
+          `Cell voltage difference is ${(difference * 1000).toFixed(0)} mV. Investigate balancing performance.`
+
       });
 
     }
 
   });
 
+
+  /* ===============================
+     CRITICAL COUNT
+  =============================== */
+
   const criticalCount =
-    alerts.filter(a => a.sev === "critical").length;
+    alerts.filter(
+      a => a.sev === "critical"
+    ).length;
+
 
   if (badge) {
-    badge.textContent = `${criticalCount} Critical`;
+
+    badge.textContent =
+      `${criticalCount} Critical`;
+
   }
+
+
+  /* ===============================
+     NO ALERTS
+  =============================== */
 
   if (!alerts.length) {
 
     list.innerHTML = `
+
       <div style="padding:20px">
+
         No battery alerts
+
       </div>
+
     `;
 
     return;
+
   }
+
+
+  /* ===============================
+     DISPLAY ALERTS
+  =============================== */
 
   list.innerHTML = alerts.map(a => `
 
@@ -1884,41 +2044,61 @@ function buildAlerts() {
       >
 
         <span class="acc-sev-icon">
+
           ${SEV_ICON[a.sev]}
+
         </span>
+
 
         <div class="acc-meta">
 
           <div class="acc-meta-row">
 
             <span class="acc-title">
+
               ${a.title}
+
             </span>
 
-            <span class="sev-badge ${SEV_CLASS[a.sev]}">
+
+            <span
+              class="sev-badge ${SEV_CLASS[a.sev]}"
+            >
+
               ${SEV_LABEL[a.sev]}
+
             </span>
 
           </div>
 
-          <div class="acc-sub">
-            ${a.equip}
-          </div>
 
           <div class="acc-sub">
+
+            ${a.equip}
+
+          </div>
+
+
+          <div class="acc-sub">
+
             Live
+
           </div>
 
         </div>
+
 
         <span
           class="acc-chevron"
           id="chev-${a.id}"
         >
+
           ▾
+
         </span>
 
       </button>
+
 
       <div
         class="acc-body"
@@ -1926,7 +2106,9 @@ function buildAlerts() {
       >
 
         <p>
+
           ${a.desc}
+
         </p>
 
       </div>
