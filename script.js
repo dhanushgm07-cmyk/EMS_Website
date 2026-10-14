@@ -2771,132 +2771,57 @@ const USERS = {
 };
 
 
-function login() {
 
-  const username =
-    document
-      .getElementById(
-        "username"
-      )
-      .value
-      .trim();
+/* AUTH */
 
-  const password =
-    document
-      .getElementById(
-        "password"
-      )
-      .value;
+async function login() {
+  const email = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const err = document.getElementById("login-error");
 
-  const err =
-    document.getElementById(
-      "login-error"
-    );
+  const { data, error } = await db.auth.signInWithPassword({
+    email: email,
+    password: password
+  });
 
-  if (
-    USERS[username] &&
-    USERS[username] ===
-      password
-  ) {
-
+  if (error) {
     if (err) {
-
-      err.classList.add(
-        "hidden"
-      );
+      err.textContent = "Invalid email or password";
+      err.classList.remove("hidden");
     }
-
-    const chip =
-      document.getElementById(
-        "user-chip"
-      );
-
-    if (chip) {
-
-      chip.textContent =
-        username[0]
-          .toUpperCase();
-    }
-
-    document
-      .getElementById(
-        "login-page"
-      )
-      .classList.remove(
-        "active"
-      );
-
-    document
-      .getElementById(
-        "dashboard-page"
-      )
-      .classList.add(
-        "active"
-      );
-
-    initDashboard();
-
+    return;
   }
 
-  else {
+  if (err) err.classList.add("hidden");
 
-    if (err) {
-
-      err.classList.remove(
-        "hidden"
-      );
-    }
-
+  const chip = document.getElementById("user-chip");
+  if (chip) {
+    chip.textContent = (data.user.email || "U")[0].toUpperCase();
   }
+
+  document.getElementById("login-page").classList.remove("active");
+  document.getElementById("dashboard-page").classList.add("active");
+
+  initDashboard();
 }
 
+async function logout() {
+  const { error } = await db.auth.signOut();
 
-function logout() {
-
-  const dashboard =
-    document.getElementById(
-      "dashboard-page"
-    );
-
-  const loginPage =
-    document.getElementById(
-      "login-page"
-    );
-
-  if (dashboard) {
-
-    dashboard.classList.remove(
-      "active"
-    );
+  if (error) {
+    alert("Logout failed. Please try again.");
+    return;
   }
 
-  if (loginPage) {
+  document.getElementById("dashboard-page").classList.remove("active");
+  document.getElementById("login-page").classList.add("active");
 
-    loginPage.classList.add(
-      "active"
-    );
-  }
-
-  const username =
-    document.getElementById(
-      "username"
-    );
-
-  const password =
-    document.getElementById(
-      "password"
-    );
-
-  if (username) {
-    username.value = "";
-  }
-
-  if (password) {
-    password.value = "";
-  }
+  document.getElementById("username").value = "";
+  document.getElementById("password").value = "";
 
   destroyCharts();
 }
+
 
 
 /* ═══════════════════════════════════════════
