@@ -2765,14 +2765,8 @@ function switchTab(
 
 const USERS = {
 
-  admin:
-    "admin123",
-
-  sodion:
-    "sodion123",
-
-  operator:
-    "op2024"
+  Naxion:
+    "Naxi@2003",
 
 };
 
