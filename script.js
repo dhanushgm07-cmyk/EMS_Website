@@ -15,6 +15,30 @@ const db = supabase.createClient(
 );
 
 
+db.auth.onAuthStateChange((event, session) => {
+  if (event === "PASSWORD_RECOVERY" && session) {
+    setTimeout(async () => {
+      const newPassword = prompt("Enter your new password:");
+
+      if (!newPassword) return;
+
+      const { error } = await db.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        alert("Password update failed: " + error.message);
+        return;
+      }
+
+      alert("Password updated successfully. Please log in.");
+      await db.auth.signOut();
+      window.location.href = "https://naxion-ems.vercel.app/";
+    }, 0);
+  }
+});
+
+
 /* ═══════════════════════════════════════════
    PACK CONFIGURATION
 ══════════════════════════════════════════ */
