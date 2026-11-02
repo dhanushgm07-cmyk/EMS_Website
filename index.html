@@ -229,46 +229,64 @@
   <!-- ═════════ PCS VIEW ═════════ -->
   <div id="view-pcs" class="hidden">
 
-    <div class="kpi-grid pcs-kpi-grid" id="pcs-kpis"></div>
+    <div id="pcs-banner"></div>
 
     <div class="tabs-bar">
       <button class="tab pcs-tab active" onclick="switchPcsTab('overview',this)">Overview</button>
+      <button class="tab pcs-tab" onclick="switchPcsTab('trends',this)">Trends</button>
       <button class="tab pcs-tab" onclick="switchPcsTab('data',this)">All Data</button>
-      <button class="tab pcs-tab" onclick="switchPcsTab('status',this)">Status &amp; Faults</button>
+      <button class="tab pcs-tab" onclick="switchPcsTab('faults',this)">Faults<span class="tab-badge hidden" id="pcs-fault-badge"></span></button>
     </div>
 
+    <!-- OVERVIEW -->
     <div id="pcs-tab-overview" class="pcs-panel">
-      <div class="two-col">
+      <div class="kpi-grid pcs-kpi-grid" id="pcs-kpis"></div>
+      <div class="two-col pcs-flow-row">
         <div class="card">
-          <div class="card-title">AC Power — Real-Time</div>
-          <canvas id="pcsPowerChart"></canvas>
+          <div class="card-title">Power Flow — Live</div>
+          <div id="pcs-flow"></div>
         </div>
         <div class="card">
-          <div class="card-title">AC &amp; DC Voltage</div>
-          <canvas id="pcsVoltChart"></canvas>
-        </div>
-      </div>
-      <div class="two-col" style="margin-top:16px">
-        <div class="card">
-          <div class="card-title">AC &amp; DC Current</div>
-          <canvas id="pcsCurrChart"></canvas>
-        </div>
-        <div class="card">
-          <div class="card-title">Temperature &amp; Efficiency</div>
-          <canvas id="pcsTempChart"></canvas>
+          <div class="card-title">Health Gauges</div>
+          <div class="gauge-grid" id="pcs-gauges"></div>
         </div>
       </div>
     </div>
 
+    <!-- TRENDS -->
+    <div id="pcs-tab-trends" class="pcs-panel hidden">
+      <div class="card">
+        <div class="trend-head">
+          <div class="card-title">PCS Trends</div>
+          <div class="range-tabs" id="pcs-range"></div>
+        </div>
+        <div class="chip-row" id="pcs-chips"></div>
+        <div class="pcs-chart-box"><canvas id="pcsTrendChart"></canvas></div>
+        <div class="stat-strip" id="pcs-stats"></div>
+      </div>
+    </div>
+
+    <!-- ALL DATA -->
     <div id="pcs-tab-data" class="pcs-panel hidden">
       <div class="card">
-        <div class="card-title">All PCS Data — Latest 50 Records</div>
+        <div class="card-title-row">
+          <div class="card-title">All PCS Data</div>
+          <div class="tbl-actions" id="pcs-tbl-ctl"></div>
+        </div>
         <div class="tbl-wrap" id="pcs-table"></div>
+        <div class="pager" id="pcs-pager"></div>
       </div>
     </div>
 
-    <div id="pcs-tab-status" class="pcs-panel hidden">
-      <div class="card" id="pcs-status"></div>
+    <!-- FAULTS -->
+    <div id="pcs-tab-faults" class="pcs-panel hidden">
+      <div class="two-col">
+        <div class="card" id="pcs-fault-now"></div>
+        <div class="card">
+          <div class="card-title">Fault History</div>
+          <div id="pcs-fault-list"></div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -281,6 +299,7 @@
 <div id="toast" class="toast hidden"></div>
   
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="script.js"></script> 
+<script src="script.js"></script>
+<script src="pcs.js"></script>
 </body>
 </html>
