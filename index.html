@@ -42,6 +42,10 @@
       <span class="topbar-icon">⚡</span>
       <span class="topbar-title">Energy Dashboard</span>
     </div>
+    <div class="view-switch">
+      <button class="vbtn active" id="vbtn-bms" onclick="switchView('bms')">🔋 BMS</button>
+      <button class="vbtn" id="vbtn-pcs" onclick="switchView('pcs')">⚙ PCS</button>
+    </div>
     <div class="topbar-right">
       <div class="live-badge"><span class="live-dot"></span>LIVE</div>
       <div class="clock" id="clock">00:00:00</div>
@@ -51,6 +55,9 @@
   </header>
 
   <main class="dash-main">
+
+  <!-- ═════════ BMS VIEW ═════════ -->
+  <div id="view-bms">
 
     <!-- FILTERS -->
     <div class="filter-bar">
@@ -152,7 +159,6 @@
       <button class="tab" onclick="switchTab('heatmap',this)">Heat Map</button>
       <button class="tab" onclick="switchTab('trends',this)">Trends</button>
       <button class="tab" onclick="switchTab('alerts',this)">Alerts</button>
-      <button class="tab" onclick="switchTab('pcs',this)">PCS</button>
     </div>
 
     <!-- OVERVIEW -->
@@ -216,9 +222,22 @@
       </div>
     </div>
 
-    <!-- PCS -->
-    <div id="tab-pcs" class="tab-panel hidden">
-      <div class="kpi-grid pcs-kpi-grid" id="pcs-kpis"></div>
+  </div>
+  <!-- ═════════ /BMS VIEW ═════════ -->
+
+
+  <!-- ═════════ PCS VIEW ═════════ -->
+  <div id="view-pcs" class="hidden">
+
+    <div class="kpi-grid pcs-kpi-grid" id="pcs-kpis"></div>
+
+    <div class="tabs-bar">
+      <button class="tab pcs-tab active" onclick="switchPcsTab('overview',this)">Overview</button>
+      <button class="tab pcs-tab" onclick="switchPcsTab('data',this)">All Data</button>
+      <button class="tab pcs-tab" onclick="switchPcsTab('status',this)">Status &amp; Faults</button>
+    </div>
+
+    <div id="pcs-tab-overview" class="pcs-panel">
       <div class="two-col">
         <div class="card">
           <div class="card-title">AC Power — Real-Time</div>
@@ -229,8 +248,31 @@
           <canvas id="pcsVoltChart"></canvas>
         </div>
       </div>
-      <div class="card" id="pcs-status" style="margin-top:16px"></div>
+      <div class="two-col" style="margin-top:16px">
+        <div class="card">
+          <div class="card-title">AC &amp; DC Current</div>
+          <canvas id="pcsCurrChart"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Temperature &amp; Efficiency</div>
+          <canvas id="pcsTempChart"></canvas>
+        </div>
+      </div>
     </div>
+
+    <div id="pcs-tab-data" class="pcs-panel hidden">
+      <div class="card">
+        <div class="card-title">All PCS Data — Latest 50 Records</div>
+        <div class="tbl-wrap" id="pcs-table"></div>
+      </div>
+    </div>
+
+    <div id="pcs-tab-status" class="pcs-panel hidden">
+      <div class="card" id="pcs-status"></div>
+    </div>
+
+  </div>
+  <!-- ═════════ /PCS VIEW ═════════ -->
 
   </main>
 </div>
