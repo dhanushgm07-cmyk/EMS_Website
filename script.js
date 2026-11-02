@@ -1995,233 +1995,6 @@ function buildAlerts() {
 }
 
 /* ═══════════════════════════════════════════
-   PCS  (table: PCS_Data)
-   Edit PCS_KPIS keys to match your column names
-═══════════════════════════════════════════ */
-
-let PCS_DATA = [];
-let pcsPowerChart = null;
-let pcsVoltChart = null;
-let pcsCurrChart = null;
-let pcsTempChart = null;
-
-const PCS_KPIS = [
-  ["Ac_voltage",     "AC Voltage",     "V",    "#D75B5B", "⚡"],
-  ["Ac_current",     "AC Current",     "A",    "#A7B89C", "▬"],
-  ["Frequency",      "Frequency",      "Hz",   "#E0A25B", "〰"],
-  ["Active_power",   "Active Power",   "kW",   "#E57A2A", "⚙"],
-  ["Reactive_power", "Reactive Power", "kVAr", "#8A6FDF", "⚙"],
-  ["Power_factor",   "Power Factor",   "",     "#FF924C", "📐"],
-  ["Dc_voltage",     "DC Voltage",     "V",    "#3FB950", "🔋"],
-  ["Temperature",    "Temperature",    "°C",   "#E0A25B", "🌡"]
-];
-
-/* Edit per PCS manual */
-const PCS_FAULTS = {
-  0: "No fault",
-  1: "DC over-voltage",
-  2: "DC under-voltage",
-  3: "Grid over-voltage",
-  4: "Grid under-voltage",
-  5: "Over-frequency",
-  6: "Under-frequency",
-  7: "Over-temperature",
-  8: "Over-current"
-};
-
-async function getPCSData() {
-
-  const { data, error } = await db
-    .from("PCS_Data")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  if (error) {
-    console.error("PCS DATA ERROR:", error);
-    renderPCSEmpty("PCS table not reachable");
-    return;
-  }
-
-  if (!data || !data.length) {
-    renderPCSEmpty("No PCS data yet");
-    return;
-  }
-
-  PCS_DATA = data;
-
-  renderPCSKpis();
-  renderPCSStatus();
-  renderPCSTable();
-  buildPCSCharts();
-}
-
-function renderPCSEmpty(msg) {
-
-  const k = document.getElementById("pcs-kpis");
-  const s = document.getElementById("pcs-status");
-  const t = document.getElementById("pcs-table");
-
-  if (k) k.innerHTML = "";
-  if (s) s.innerHTML = `<div class="pcs-empty">${msg}</div>`;
-  if (t) t.innerHTML = `<div class="pcs-empty">${msg}</div>`;
-}
-
-/* Shows EVERY column in PCS_Data automatically */
-function renderPCSTable() {
-
-  const el = document.getElementById("pcs-table");
-
-  if (!el || !PCS_DATA.length) return;
-
-  const cols = Object.keys(PCS_DATA[0]);
-
-  const cell = (k, v) => {
-    if (v === null || v === undefined) return "--";
-    if (k === "created_at") return new Date(v).toLocaleString();
-    const n = Number(v);
-    return typeof v === "number" || (v !== "" && Number.isFinite(n) && typeof v !== "boolean")
-      ? (Number.isInteger(n) ? n : n.toFixed(2))
-      : v;
-  };
-
-  el.innerHTML = `
-    <table>
-      <thead><tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr></thead>
-      <tbody>
-        ${PCS_DATA.map(r =>
-          `<tr>${cols.map(c => `<td>${cell(c, r[c])}</td>`).join("")}</tr>`
-        ).join("")}
-      </tbody>
-    </table>`;
-}
-
-function renderPCSKpis() {
-
-  const el = document.getElementById("pcs-kpis");
-
-  if (!el || !PCS_DATA.length) return;
-
-  const l = PCS_DATA[0];
-
-  el.innerHTML = PCS_KPIS.map(([key, label, unit, color, icon]) => {
-
-    const n = Number(l[key]);
-
-    return `
-      <div class="kpi-card">
-        <div class="kpi-body">
-          <div class="kpi-label">${label}</div>
-          <div class="kpi-val">
-            ${Number.isFinite(n) && l[key] !== null ? n.toFixed(1) : "--"}
-            <em>${unit}</em>
-          </div>
-        </div>
-        <div class="kpi-icon" style="background:${color}">${icon}</div>
-      </div>`;
-  }).join("");
-}
-
-function renderPCSStatus() {
-
-  const el = document.getElementById("pcs-status");
-
-  if (!el || !PCS_DATA.length) return;
-
-  const l = PCS_DATA[0];
-  const code = Number(l.Fault_code || 0);
-  const ok = code === 0;
-
-  el.innerHTML = `
-    <div class="card-title-row">
-      <div class="card-title">PCS Status</div>
-      <span class="sev-badge ${ok ? "sev-info" : "sev-critical"}">
-        ${ok ? "NORMAL" : "FAULT"}
-      </span>
-    </div>
-    <div class="acc-metrics">
-      <div class="acc-metric-row"><span>Mode</span><span>${l.Mode || "--"}</span></div>
-      <div class="acc-metric-row"><span>Fault</span><span>${PCS_FAULTS[code] || "Code " + code}</span></div>
-      <div class="acc-metric-row"><span>Efficiency</span><span>${Number(l.Efficiency || 0).toFixed(1)} %</span></div>
-      <div class="acc-metric-row"><span>Last update</span><span>${new Date(l.created_at).toLocaleString()}</span></div>
-    </div>`;
-}
-
-function buildPCSCharts() {
-
-  const c1 = document.getElementById("pcsPowerChart");
-  const c2 = document.getElementById("pcsVoltChart");
-  const c3 = document.getElementById("pcsCurrChart");
-  const c4 = document.getElementById("pcsTempChart");
-
-  if (!c1 || !c2 || !c3 || !c4 || !PCS_DATA.length) return;
-
-  [pcsPowerChart, pcsVoltChart, pcsCurrChart, pcsTempChart]
-    .forEach(c => c && c.destroy());
-
-  const d = PCS_DATA.slice().reverse();
-
-  const labels = d.map(r =>
-    new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-  );
-
-  const ds = (label, key, color) => ({
-    label,
-    data: d.map(r => Number(r[key] || 0)),
-    borderColor: color,
-    borderWidth: 2,
-    tension: 0.4,
-    pointRadius: 2,
-    fill: false
-  });
-
-  pcsPowerChart = new Chart(c1, {
-    type: "line",
-    data: { labels, datasets: [
-      ds("Active (kW)", "Active_power", "#FF924C"),
-      ds("Reactive (kVAr)", "Reactive_power", "#8A6FDF")
-    ]},
-    options: { ...CHART_DEFAULTS, aspectRatio: 2 }
-  });
-
-  pcsVoltChart = new Chart(c2, {
-    type: "line",
-    data: { labels, datasets: [
-      ds("AC (V)", "Ac_voltage", "#D75B5B"),
-      ds("DC (V)", "Dc_voltage", "#3FB950")
-    ]},
-    options: { ...CHART_DEFAULTS, aspectRatio: 2 }
-  });
-
-  pcsCurrChart = new Chart(c3, {
-    type: "line",
-    data: { labels, datasets: [
-      ds("AC (A)", "Ac_current", "#A7B89C"),
-      ds("DC (A)", "Dc_current", "#E57A2A")
-    ]},
-    options: { ...CHART_DEFAULTS, aspectRatio: 2 }
-  });
-
-  pcsTempChart = new Chart(c4, {
-    type: "line",
-    data: { labels, datasets: [
-      ds("Temp (°C)", "Temperature", "#E0A25B"),
-      { ...ds("Efficiency (%)", "Efficiency", "#3FB950"), yAxisID: "y1" }
-    ]},
-    options: {
-      ...CHART_DEFAULTS,
-      aspectRatio: 2,
-      scales: {
-        x: { grid: { color: "#E0E0E0" } },
-        y: { position: "left" },
-        y1: { position: "right", grid: { display: false } }
-      }
-    }
-  });
-}
-
-
-/* ═══════════════════════════════════════════
    REPORTS
 ═══════════════════════════════════════════ */
 
@@ -3028,29 +2801,9 @@ function switchView(view) {
   document.getElementById("vbtn-bms").classList.toggle("active", view === "bms");
   document.getElementById("vbtn-pcs").classList.toggle("active", view === "pcs");
 
-  if (view === "pcs") {
-
-    renderPCSKpis();
-    buildPCSCharts();
-    renderPCSTable();
-  }
+  if (view === "pcs" && typeof pcsOnShow === "function") pcsOnShow();
 }
 
-function switchPcsTab(name, btn) {
-
-  document.querySelectorAll(".pcs-panel")
-    .forEach(p => p.classList.add("hidden"));
-
-  document.querySelectorAll(".pcs-tab")
-    .forEach(b => b.classList.remove("active"));
-
-  const panel = document.getElementById("pcs-tab-" + name);
-  if (panel) panel.classList.remove("hidden");
-  if (btn) btn.classList.add("active");
-
-  if (name === "overview") buildPCSCharts();
-  if (name === "data") renderPCSTable();
-}
 
 
 /* ═══════════════════════════════════════════
@@ -3164,11 +2917,7 @@ function destroyCharts() {
   [
     lineChart,
     barChart,
-    trendChart,
-    pcsPowerChart,
-    pcsVoltChart,
-    pcsCurrChart,
-    pcsTempChart
+    trendChart
   ].forEach(
     chart => {
 
@@ -3188,6 +2937,8 @@ function destroyCharts() {
 
   trendChart =
     null;
+
+  if (typeof destroyPCS === "function") destroyPCS();
 }
 
 
