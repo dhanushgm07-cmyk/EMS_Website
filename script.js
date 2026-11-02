@@ -2796,6 +2796,28 @@ const USERS = {
 
 
 
+/* APP MODULE NAVIGATION */
+function showAppPage(page, button) {
+  document.querySelectorAll(".app-page").forEach(section => {
+    section.classList.remove("active");
+  });
+  document.querySelectorAll(".nav-item").forEach(item => {
+    item.classList.remove("active");
+  });
+
+  const target = document.getElementById(
+    page === "pcs" ? "pcs-page-content" : "battery-page-content"
+  );
+  if (target) target.classList.add("active");
+  if (button) button.classList.add("active");
+
+  // Avoid presenting the battery LIVE badge as PCS telemetry.
+  const connectionLabel = document.getElementById("connection-label");
+  if (connectionLabel) {
+    connectionLabel.textContent = page === "pcs" ? "PCS NOT CONNECTED" : "RBMS LIVE";
+  }
+}
+
 /* AUTH */
 
 async function login() {
@@ -2826,10 +2848,16 @@ async function login() {
   document.getElementById("login-page").classList.remove("active");
   document.getElementById("dashboard-page").classList.add("active");
 
+  showAppPage("battery", document.querySelector('.nav-item[data-page="battery"]'));
   initDashboard();
 }
 
 async function logout() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+
   const { error } = await db.auth.signOut();
 
   if (error) {
@@ -2844,6 +2872,8 @@ async function logout() {
   document.getElementById("password").value = "";
 
   destroyCharts();
+  BMS_DATA = [];
+  PACK_DATA = {};
 }
 
 
