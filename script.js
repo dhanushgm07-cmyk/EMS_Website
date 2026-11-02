@@ -2002,6 +2002,8 @@ function buildAlerts() {
 let PCS_DATA = [];
 let pcsPowerChart = null;
 let pcsVoltChart = null;
+let pcsCurrChart = null;
+let pcsTempChart = null;
 
 const PCS_KPIS = [
   ["Ac_voltage",     "AC Voltage",     "V",    "#D75B5B", "⚡"],
@@ -2050,6 +2052,7 @@ async function getPCSData() {
 
   renderPCSKpis();
   renderPCSStatus();
+  renderPCSTable();
   buildPCSCharts();
 }
 
@@ -2057,9 +2060,40 @@ function renderPCSEmpty(msg) {
 
   const k = document.getElementById("pcs-kpis");
   const s = document.getElementById("pcs-status");
+  const t = document.getElementById("pcs-table");
 
   if (k) k.innerHTML = "";
   if (s) s.innerHTML = `<div class="pcs-empty">${msg}</div>`;
+  if (t) t.innerHTML = `<div class="pcs-empty">${msg}</div>`;
+}
+
+/* Shows EVERY column in PCS_Data automatically */
+function renderPCSTable() {
+
+  const el = document.getElementById("pcs-table");
+
+  if (!el || !PCS_DATA.length) return;
+
+  const cols = Object.keys(PCS_DATA[0]);
+
+  const cell = (k, v) => {
+    if (v === null || v === undefined) return "--";
+    if (k === "created_at") return new Date(v).toLocaleString();
+    const n = Number(v);
+    return typeof v === "number" || (v !== "" && Number.isFinite(n) && typeof v !== "boolean")
+      ? (Number.isInteger(n) ? n : n.toFixed(2))
+      : v;
+  };
+
+  el.innerHTML = `
+    <table>
+      <thead><tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr></thead>
+      <tbody>
+        ${PCS_DATA.map(r =>
+          `<tr>${cols.map(c => `<td>${cell(c, r[c])}</td>`).join("")}</tr>`
+        ).join("")}
+      </tbody>
+    </table>`;
 }
 
 function renderPCSKpis() {
@@ -2117,10 +2151,13 @@ function buildPCSCharts() {
 
   const c1 = document.getElementById("pcsPowerChart");
   const c2 = document.getElementById("pcsVoltChart");
+  const c3 = document.getElementById("pcsCurrChart");
+  const c4 = document.getElementById("pcsTempChart");
 
-  if (!c1 || !c2 || !PCS_DATA.length) return;
+  if (!c1 || !c2 || !c3 || !c4 || !PCS_DATA.length) return;
 
-  [pcsPowerChart, pcsVoltChart].forEach(c => c && c.destroy());
+  [pcsPowerChart, pcsVoltChart, pcsCurrChart, pcsTempChart]
+    .forEach(c => c && c.destroy());
 
   const d = PCS_DATA.slice().reverse();
 
@@ -2154,6 +2191,32 @@ function buildPCSCharts() {
       ds("DC (V)", "Dc_voltage", "#3FB950")
     ]},
     options: { ...CHART_DEFAULTS, aspectRatio: 2 }
+  });
+
+  pcsCurrChart = new Chart(c3, {
+    type: "line",
+    data: { labels, datasets: [
+      ds("AC (A)", "Ac_current", "#A7B89C"),
+      ds("DC (A)", "Dc_current", "#E57A2A")
+    ]},
+    options: { ...CHART_DEFAULTS, aspectRatio: 2 }
+  });
+
+  pcsTempChart = new Chart(c4, {
+    type: "line",
+    data: { labels, datasets: [
+      ds("Temp (°C)", "Temperature", "#E0A25B"),
+      { ...ds("Efficiency (%)", "Efficiency", "#3FB950"), yAxisID: "y1" }
+    ]},
+    options: {
+      ...CHART_DEFAULTS,
+      aspectRatio: 2,
+      scales: {
+        x: { grid: { color: "#E0E0E0" } },
+        y: { position: "left" },
+        y1: { position: "right", grid: { display: false } }
+      }
+    }
   });
 }
 
@@ -2945,11 +3008,48 @@ function switchTab(
     );
   }
 
-  if (name === "pcs") {
+}
+
+
+/* ═══════════════════════════════════════════
+   VIEW SWITCH  (BMS <-> PCS)
+═══════════════════════════════════════════ */
+
+function switchView(view) {
+
+  const bms = document.getElementById("view-bms");
+  const pcs = document.getElementById("view-pcs");
+
+  if (!bms || !pcs) return;
+
+  bms.classList.toggle("hidden", view !== "bms");
+  pcs.classList.toggle("hidden", view !== "pcs");
+
+  document.getElementById("vbtn-bms").classList.toggle("active", view === "bms");
+  document.getElementById("vbtn-pcs").classList.toggle("active", view === "pcs");
+
+  if (view === "pcs") {
 
     renderPCSKpis();
     buildPCSCharts();
+    renderPCSTable();
   }
+}
+
+function switchPcsTab(name, btn) {
+
+  document.querySelectorAll(".pcs-panel")
+    .forEach(p => p.classList.add("hidden"));
+
+  document.querySelectorAll(".pcs-tab")
+    .forEach(b => b.classList.remove("active"));
+
+  const panel = document.getElementById("pcs-tab-" + name);
+  if (panel) panel.classList.remove("hidden");
+  if (btn) btn.classList.add("active");
+
+  if (name === "overview") buildPCSCharts();
+  if (name === "data") renderPCSTable();
 }
 
 
@@ -3066,7 +3166,9 @@ function destroyCharts() {
     barChart,
     trendChart,
     pcsPowerChart,
-    pcsVoltChart
+    pcsVoltChart,
+    pcsCurrChart,
+    pcsTempChart
   ].forEach(
     chart => {
 
